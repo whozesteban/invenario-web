@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario para Revendedores</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); }
+        .modal-content { animation: slide-down 0.3s ease-out; }
+        @keyframes slide-down {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8">
+            <div>
+                <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                    Accede a tu Inventario
+                </h2>
+                <p class="mt-2 text-center text-sm text-gray-600">
+                    Usa el mismo usuario y PIN en todos tus dispositivos.
+                </p>
+            </div>
+            <div class="mt-8 space-y-6">
+                <div class="rounded-md shadow-sm -space-y-px">
+                    <div>
+                        <label for="username" class="sr-only">Usuario</label>
+                        <input id="username" name="username" type="text" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Usuario">
+                    </div>
+                    <div>
+                        <label for="pin" class="sr-only">PIN</label>
+                        <input id="pin" name="pin" type="password" maxlength="4" pattern="\d{4}" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="PIN de 4 dígitos">
+                    </div>
+                </div>
+                <p id="loginError" class="text-red-500 text-sm mt-2 text-center hidden"></p>
+                <div>
+                    <button id="loginBtn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Acceder
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Content (hidden by default) -->
+    <div id="appContent" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-md">
+            <div class="container mx-auto px-4 py-4 md:px-6 flex justify-between items-center">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Mi Inventario</h1>
+                <div class="flex items-center space-x-4">
+                    <span id="loggedInUser" class="text-sm text-gray-600 hidden md:block font-semibold"></span>
+                    <button id="addProductBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center">
+                        <i class="fas fa-plus mr-2"></i> Añadir
+                    </button>
+                    <button id="logoutBtn" title="Salir" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg shadow-md flex items-center">
+                        <i class="fas fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main -->
+        <main class="container mx-auto px-4 md:px-6 py-8">
+            <section id="summary" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div class="bg-white p-4 rounded-xl shadow">
+                    <h3 class="font-bold text-gray-500">Inversión Total</h3>
+                    <p id="totalInvestment" class="text-2xl font-bold text-blue-600">$0.00</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow">
+                    <h3 class="font-bold text-gray-500">Ingresos Totales</h3>
+                    <p id="totalRevenue" class="text-2xl font-bold text-green-600">$0.00</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow">
+                    <h3 class="font-bold text-gray-500">Ganancia Total</h3>
+                    <p id="totalProfit" class="text-2xl font-bold text-purple-600">$0.00</p>
+                </div>
+            </section>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                    <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-box-open text-yellow-500 mr-3"></i>En Venta (<span id="inStockCount">0</span>)</h2>
+                    <div id="inStockList" class="space-y-4"></div>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-hand-holding-dollar text-green-500 mr-3"></i>Vendido (<span id="soldCount">0</span>)</h2>
+                    <div id="soldList" class="space-y-4"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="productModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md m-4 modal-content">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4">Añadir Nuevo Producto</h2>
+            <form id="productForm">
+                <input type="hidden" id="productId">
+                <div class="mb-4">
+                    <label for="productName" class="block text-sm font-medium text-gray-700">Nombre del Producto</label>
+                    <input type="text" id="productName" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="purchasePrice" class="block text-sm font-medium text-gray-700">Precio de Compra</label>
+                        <input type="number" id="purchasePrice" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="purchaseDate" class="block text-sm font-medium text-gray-700">Fecha de Compra</label>
+                        <input type="date" id="purchaseDate" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="imageUrl" class="block text-sm font-medium text-gray-700">URL de la Imagen</label>
+                    <input type="url" id="imageUrl" placeholder="https://ejemplo.com/imagen.jpg" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelProductBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="soldModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm m-4 modal-content">
+            <h2 class="text-2xl font-bold mb-4">Marcar como Vendido</h2>
+            <form id="soldForm">
+                <input type="hidden" id="soldProductId">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="salePrice" class="block text-sm font-medium text-gray-700">Precio de Venta</label>
+                        <input type="number" id="salePrice" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="saleDate" class="block text-sm font-medium text-gray-700">Fecha de Venta</label>
+                        <input type="date" id="saleDate" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelSoldBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Confirmar Venta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="deleteModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm m-4 modal-content text-center">
+            <input type="hidden" id="deleteProductId">
+            <i class="fas fa-triangle-exclamation text-5xl text-red-500 mb-4"></i>
+            <h2 class="text-xl font-bold mb-2">¿Estás seguro?</h2>
+            <p class="text-gray-600 mb-6">Esta acción no se puede deshacer.</p>
+            <div class="flex justify-center space-x-3">
+                <button type="button" id="cancelDeleteBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                <button type="button" id="confirmDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Sí, eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            onSnapshot, 
+            doc, 
+            updateDoc, 
+            deleteDoc,
+            query,
+            enableIndexedDbPersistence
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-I4FIbyVTFdOY9KS2wKCwQezHQyBkaLo",
+            authDomain: "inventario-ebay.firebaseapp.com",
+            projectId: "inventario-ebay",
+            storageBucket: "inventario-ebay.appspot.com",
+            messagingSenderId: "385606504266",
+            appId: "1:385606504266:web:cc4ce040293ecb9dccfbb3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') console.warn("Persistence failed: multiple tabs open.");
+            else if (err.code == 'unimplemented') console.warn("Persistence not available in this browser.");
+        });
+
+        // --- GLOBAL VARIABLES ---
+        let productsCollectionRef = null;
+        let unsubscribe = null; 
+
+        // --- UI ELEMENTS ---
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        const loginError = document.getElementById('loginError');
+
+        // --- LOGIN LOGIC ---
+        function showApp(userId, username) {
+            loginScreen.classList.add('hidden');
+            appContent.classList.remove('hidden');
+            document.getElementById('loggedInUser').textContent = `Usuario: ${username}`;
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const collectionPath = `artifacts/${appId}/users/${userId}/products`;
+            productsCollectionRef = collection(db, collectionPath);
+            listenForProducts();
+        }
+
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            const usernameInput = document.getElementById('username');
+            const pinInput = document.getElementById('pin');
+            const username = usernameInput.value.trim().toLowerCase();
+            const pin = pinInput.value.trim();
+
+            if (!username || !pin || !/^\d{4}$/.test(pin)) {
+                loginError.textContent = 'Por favor, introduce un usuario y un PIN de 4 dígitos.';
+                loginError.classList.remove('hidden');
+                return;
+            }
+            
+            loginError.classList.add('hidden');
+            const userId = `user-pin-login-${username}-${pin}`;
+            sessionStorage.setItem('inventoryUserId', userId);
+            sessionStorage.setItem('inventoryUsername', username);
+            showApp(userId, username);
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            sessionStorage.removeItem('inventoryUserId');
+            sessionStorage.removeItem('inventoryUsername');
+            if (unsubscribe) unsubscribe();
+            clearUI();
+            loginScreen.classList.remove('hidden');
+            appContent.classList.add('hidden');
+        });
+
+        // --- FIRESTORE & UI RENDERING ---
+        function listenForProducts() {
+            if (!productsCollectionRef) return;
+            const q = query(productsCollectionRef);
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProducts(allProducts);
+                updateSummary(allProducts);
+            }, (error) => console.error("Error fetching products:", error));
+        }
+        
+        function renderProducts(products) {
+            const inStockList = document.getElementById('inStockList');
+            const soldList = document.getElementById('soldList');
+            inStockList.innerHTML = '';
+            soldList.innerHTML = '';
+            const sortedProducts = products.sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate));
+            sortedProducts.forEach(product => {
+                const productCard = createProductCard(product);
+                if (product.status === 'sold') {
+                    soldList.appendChild(productCard);
+                } else {
+                    inStockList.appendChild(productCard);
+                }
+            });
+        }
+        
+        function createProductCard(product) {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-xl shadow-lg border border-gray-200 transition-shadow hover:shadow-xl';
+            const profit = product.salePrice && product.purchasePrice ? product.salePrice - product.purchasePrice : 0;
+            const profitColor = profit > 0 ? 'text-green-600' : 'text-red-600';
+            const profitSign = profit > 0 ? '+' : '';
+            const placeholderImage = `https://placehold.co/400x300/e2e8f0/64748b?text=${encodeURIComponent(product.name)}`;
+            card.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-4">
+                    <img src="${product.imageUrl || placeholderImage}" onerror="this.onerror=null;this.src='${placeholderImage}';" alt="Foto de ${product.name}" class="w-full md:w-32 h-32 object-contain bg-gray-100 rounded-lg">
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-lg">${product.name}</h3>
+                        <p class="text-sm text-gray-500">Comprado el: ${product.purchaseDate}</p>
+                        <p class="text-md font-semibold">Precio Compra: <span class="text-red-500">$${Number(product.purchasePrice).toFixed(2)}</span></p>
+                        ${product.status === 'sold' ? `
+                            <p class="text-sm text-gray-500">Vendido el: ${product.saleDate}</p>
+                            <p class="text-md font-semibold">Precio Venta: <span class="text-green-500">$${Number(product.salePrice).toFixed(2)}</span></p>
+                            <p class="text-lg font-bold">Ganancia: <span class="${profitColor}">${profitSign}$${profit.toFixed(2)}</span></p>
+                        ` : ''}
+                    </div>
+                    <div class="flex flex-col space-y-2 justify-center items-center md:items-end mt-4 md:mt-0">
+                        ${product.status !== 'sold' ? `
+                            <button data-id="${product.id}" class="mark-sold-btn w-full md:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-dollar-sign mr-2"></i>Vender</button>
+                            <button data-id="${product.id}" class="edit-btn w-full md:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-pencil mr-2"></i>Editar</button>
+                        ` : ''}
+                        <button data-id="${product.id}" class="delete-btn w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-trash mr-2"></i>Borrar</button>
+                    </div>
+                </div>
+            `;
+            if (product.status !== 'sold') {
+                card.querySelector('.mark-sold-btn').addEventListener('click', () => openSoldModal(product.id));
+                card.querySelector('.edit-btn').addEventListener('click', () => openEditModal(product));
+            }
+            card.querySelector('.delete-btn').addEventListener('click', () => openDeleteModal(product.id));
+            return card;
+        }
+
+        function updateSummary(products) {
+            let totalInvestment = 0, totalRevenue = 0, totalProfit = 0, inStockCount = 0, soldCount = 0;
+            products.forEach(p => {
+                if (p.status === 'sold') {
+                    soldCount++;
+                    totalRevenue += Number(p.salePrice) || 0;
+                    totalProfit += (Number(p.salePrice) || 0) - (Number(p.purchasePrice) || 0);
+                } else {
+                    inStockCount++;
+                    totalInvestment += Number(p.purchasePrice) || 0;
+                }
+            });
+            document.getElementById('inStockCount').textContent = inStockCount;
+            document.getElementById('soldCount').textContent = soldCount;
+            document.getElementById('totalInvestment').textContent = `$${totalInvestment.toFixed(2)}`;
+            document.getElementById('totalRevenue').textContent = `$${totalRevenue.toFixed(2)}`;
+            document.getElementById('totalProfit').textContent = `$${totalProfit.toFixed(2)}`;
+        }
+        
+        function clearUI() {
+            document.getElementById('inStockList').innerHTML = '';
+            document.getElementById('soldList').innerHTML = '';
+            updateSummary([]);
+        }
+
+        // --- MODAL HANDLING ---
+        const productModal = document.getElementById('productModal');
+        const soldModal = document.getElementById('soldModal');
+        const deleteModal = document.getElementById('deleteModal');
+
+        document.getElementById('addProductBtn').addEventListener('click', () => {
+            document.getElementById('productForm').reset();
+            document.getElementById('productId').value = '';
+            document.getElementById('modalTitle').textContent = 'Añadir Nuevo Producto';
+            document.getElementById('purchaseDate').valueAsDate = new Date();
+            productModal.style.display = 'flex';
+        });
+
+        function openEditModal(product) {
+            document.getElementById('productForm').reset();
+            document.getElementById('modalTitle').textContent = 'Editar Producto';
+            document.getElementById('productId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('purchasePrice').value = product.purchasePrice;
+            document.getElementById('purchaseDate').value = product.purchaseDate;
+            document.getElementById('imageUrl').value = product.imageUrl || '';
+            productModal.style.display = 'flex';
+        }
+        
+        function openSoldModal(id) {
+            document.getElementById('soldForm').reset();
+            document.getElementById('soldProductId').value = id;
+            document.getElementById('saleDate').valueAsDate = new Date();
+            soldModal.style.display = 'flex';
+        }
+        
+        function openDeleteModal(id) {
+            document.getElementById('deleteProductId').value = id;
+            deleteModal.style.display = 'flex';
+        }
+
+        document.getElementById('cancelProductBtn').addEventListener('click', () => productModal.style.display = 'none');
+        document.getElementById('cancelSoldBtn').addEventListener('click', () => soldModal.style.display = 'none');
+        document.getElementById('cancelDeleteBtn').addEventListener('click', () => deleteModal.style.display = 'none');
+
+        // --- FORM SUBMISSIONS ---
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('productId').value;
+            const productData = {
+                name: document.getElementById('productName').value,
+                purchasePrice: parseFloat(document.getElementById('purchasePrice').value),
+                purchaseDate: document.getElementById('purchaseDate').value,
+                imageUrl: document.getElementById('imageUrl').value,
+            };
+            try {
+                if (id) {
+                    await updateDoc(doc(productsCollectionRef, id), productData);
+                } else {
+                    productData.status = 'in_stock';
+                    await addDoc(productsCollectionRef, productData);
+                }
+                productModal.style.display = 'none';
+            } catch (error) {
+                console.error("Error al guardar el producto: ", error);
+            }
+        });
+
+        document.getElementById('soldForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('soldProductId').value;
+            const saleData = {
+                status: 'sold',
+                salePrice: parseFloat(document.getElementById('salePrice').value),
+                saleDate: document.getElementById('saleDate').value,
+            };
+            try {
+                await updateDoc(doc(productsCollectionRef, id), saleData);
+                soldModal.style.display = 'none';
+            } catch (error) {
+                console.error("Error updating product to sold: ", error);
+            }
+        });
+        
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            const id = document.getElementById('deleteProductId').value;
+            try {
+                await deleteDoc(doc(productsCollectionRef, id));
+                deleteModal.style.display = 'none';
+            } catch (error) {
+                console.error("Error deleting product: ", error);
+            }
+        });
+        
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            const storedUserId = sessionStorage.getItem('inventoryUserId');
+            const storedUsername = sessionStorage.getItem('inventoryUsername');
+            if (storedUserId && storedUsername) {
+                showApp(storedUserId, storedUsername);
+            }
+        };
+    </script>
+</body>
+</html>
