@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario para Revendedores</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="URL_DE_TU_LOGO/LogoInventario.png">
-    <link rel="apple-touch-icon" href="URL_DE_TU_LOGO/LogoInventario.png">
+    <link rel="icon" type="image/png" href="https://i.imgur.com/r44x4Bv.png">
+    <link rel="apple-touch-icon" href="https://i.imgur.com/bDeN39x.png">
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
@@ -70,6 +70,9 @@
                     <button id="addProductBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center">
                         <i class="fas fa-plus mr-2"></i> Añadir
                     </button>
+                    <button id="seedDataBtn" title="Añadir 3 Artículos de Prueba" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-3 rounded-lg shadow-md flex items-center">
+                        <i class="fas fa-flask"></i>
+                    </button>
                     <button id="resetAccountBtn" title="Reiniciar Cuenta" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded-lg shadow-md flex items-center">
                         <i class="fas fa-bomb"></i>
                     </button>
@@ -99,11 +102,15 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div>
                     <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-box-open text-yellow-500 mr-3"></i>En Venta (<span id="inStockCount">0</span>)</h2>
-                    <div id="inStockList" class="space-y-4"></div>
+                    <div class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
+                        <div id="inStockList" class="space-y-4"></div>
+                    </div>
                 </div>
                 <div>
                     <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-history text-indigo-500 mr-3"></i>Historial de Ventas</h2>
-                    <div id="salesHistoryList" class="space-y-4"></div>
+                    <div class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
+                        <div id="salesHistoryList" class="space-y-4"></div>
+                    </div>
                 </div>
             </div>
              <div class="mt-8">
@@ -113,8 +120,10 @@
                         <i id="toggleArchivedIcon" class="fas fa-chevron-down transition-transform"></i>
                     </button>
                 </div>
-                <div id="archivedList" class="hidden space-y-4">
-                    <!-- Archived product cards will be inserted here -->
+                <div id="archivedContainer" class="hidden">
+                    <div class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
+                        <div id="archivedList" class="space-y-4"></div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -679,7 +688,7 @@
         document.getElementById('cancelResetBtn').addEventListener('click', () => resetAccountModal.style.display = 'none');
         document.getElementById('toggleArchivedBtn').addEventListener('click', () => {
             const icon = document.getElementById('toggleArchivedIcon');
-            const list = document.getElementById('archivedList');
+            const list = document.getElementById('archivedContainer'); // Corrected ID
             list.classList.toggle('hidden');
             icon.classList.toggle('fa-chevron-down');
             icon.classList.toggle('fa-chevron-up');
@@ -863,6 +872,71 @@
             } catch (error) {
                 console.error("Error resetting account: ", error);
                 alert("Ocurrió un error al intentar reiniciar la cuenta.");
+            }
+        });
+        
+        // --- SEED DATA LOGIC ---
+        document.getElementById('seedDataBtn').addEventListener('click', async () => {
+            if (!productsCollectionRef || !salesCollectionRef) {
+                alert("Por favor, inicia sesión primero.");
+                return;
+            }
+            
+            const seedBtn = document.getElementById('seedDataBtn');
+            seedBtn.disabled = true;
+            seedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                // 1. Create In-Stock Product
+                const inStockProduct = {
+                    name: "Artículo de Prueba (En Venta)",
+                    model: "Modelo-Stock",
+                    location: "Estante Prueba",
+                    condition: "Como nuevo",
+                    purchasePrice: 25.50,
+                    purchaseDate: today,
+                    quantity: 10,
+                    sellingPlatforms: ["eBay", "Prueba"]
+                };
+                const productDocRef = await addDoc(productsCollectionRef, inStockProduct);
+
+                // 2. Create Archived Product
+                const archivedProduct = {
+                    name: "Artículo de Prueba (Archivado)",
+                    model: "Modelo-Archivado",
+                    location: "Caja Antigua",
+                    condition: "Usado",
+                    purchasePrice: 15.00,
+                    purchaseDate: "2023-01-15",
+                    quantity: 0,
+                    sellingPlatforms: ["Wallapop"]
+                };
+                await addDoc(productsCollectionRef, archivedProduct);
+
+                // 3. Create a Sale Record
+                const saleRecord = {
+                    productId: productDocRef.id,
+                    productName: inStockProduct.name,
+                    quantitySold: 1,
+                    salePrice: 45.00,
+                    saleDate: today,
+                    soldPlatform: "eBay",
+                    purchasePriceAtTimeOfSale: inStockProduct.purchasePrice
+                };
+                await addDoc(salesCollectionRef, saleRecord);
+                
+                await updateDoc(productDocRef, { quantity: increment(-1) });
+                
+                alert("¡3 artículos de prueba creados con éxito!");
+
+            } catch (error) {
+                console.error("Error al generar datos de prueba:", error);
+                alert("Ocurrió un error al generar los datos.");
+            } finally {
+                seedBtn.disabled = false;
+                seedBtn.innerHTML = '<i class="fas fa-flask"></i>';
             }
         });
         
