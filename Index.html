@@ -101,14 +101,20 @@
             </section>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div>
-                    <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-box-open text-yellow-500 mr-3"></i>En Venta (<span id="inStockCount">0</span>)</h2>
-                    <div class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
+                    <button id="toggleInStockBtn" class="w-full text-left py-2 text-xl font-bold text-gray-700 flex justify-between items-center">
+                        <span class="flex items-center"><i class="fas fa-box-open text-yellow-500 mr-3"></i>En Venta (<span id="inStockCount">0</span>)</span>
+                        <i id="toggleInStockIcon" class="fas fa-chevron-up transition-transform"></i>
+                    </button>
+                    <div id="inStockContainer" class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
                         <div id="inStockList" class="space-y-4"></div>
                     </div>
                 </div>
                 <div>
-                    <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-history text-indigo-500 mr-3"></i>Historial de Ventas</h2>
-                    <div class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
+                    <button id="toggleSalesHistoryBtn" class="w-full text-left py-2 text-xl font-bold text-gray-700 flex justify-between items-center">
+                         <span class="flex items-center"><i class="fas fa-history text-indigo-500 mr-3"></i>Historial de Ventas</span>
+                         <i id="toggleSalesHistoryIcon" class="fas fa-chevron-down transition-transform"></i>
+                    </button>
+                    <div id="salesHistoryContainer" class="hidden bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
                         <div id="salesHistoryList" class="space-y-4"></div>
                     </div>
                 </div>
@@ -686,9 +692,26 @@
         document.getElementById('cancelDeleteBtn').addEventListener('click', () => deleteModal.style.display = 'none');
         document.getElementById('cancelDeleteSaleBtn').addEventListener('click', () => deleteSaleModal.style.display = 'none');
         document.getElementById('cancelResetBtn').addEventListener('click', () => resetAccountModal.style.display = 'none');
+        
+        document.getElementById('toggleInStockBtn').addEventListener('click', () => {
+            const icon = document.getElementById('toggleInStockIcon');
+            const list = document.getElementById('inStockContainer');
+            list.classList.toggle('hidden');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        });
+
+        document.getElementById('toggleSalesHistoryBtn').addEventListener('click', () => {
+            const icon = document.getElementById('toggleSalesHistoryIcon');
+            const list = document.getElementById('salesHistoryContainer');
+            list.classList.toggle('hidden');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        });
+
         document.getElementById('toggleArchivedBtn').addEventListener('click', () => {
             const icon = document.getElementById('toggleArchivedIcon');
-            const list = document.getElementById('archivedContainer'); // Corrected ID
+            const list = document.getElementById('archivedContainer');
             list.classList.toggle('hidden');
             icon.classList.toggle('fa-chevron-down');
             icon.classList.toggle('fa-chevron-up');
@@ -716,8 +739,6 @@
 
             try {
                 if (id) { // Editing or Re-listing
-                    // When re-listing, quantity is enabled. When editing, it's disabled.
-                    // This handles both cases correctly.
                     await updateDoc(doc(productsCollectionRef, id), productData);
                 } else { // Adding new
                     await addDoc(productsCollectionRef, productData);
