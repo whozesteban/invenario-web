@@ -105,8 +105,14 @@
                         <span class="flex items-center"><i class="fas fa-box-open text-yellow-500 mr-3"></i>En Venta (<span id="inStockCount">0</span>)</span>
                         <i id="toggleInStockIcon" class="fas fa-chevron-up transition-transform"></i>
                     </button>
-                    <div id="inStockContainer" class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
-                        <div id="inStockList" class="space-y-4"></div>
+                    <div id="inStockContainer" class="bg-white rounded-xl shadow p-4">
+                        <div class="relative mb-4">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                                <i class="fas fa-search text-gray-400"></i>
+                            </span>
+                            <input type="text" id="searchInput" placeholder="Buscar por nombre o modelo..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div id="inStockList" class="space-y-4 max-h-[50vh] overflow-y-auto pr-2"></div>
                     </div>
                 </div>
                 <div>
@@ -354,6 +360,7 @@
             salesCollectionRef = collection(db, `${basePath}/sales`);
             
             listenForData();
+            setupInitialView();
         }
 
         document.getElementById('loginBtn').addEventListener('click', () => {
@@ -425,12 +432,20 @@
             inStockList.innerHTML = '';
             archivedList.innerHTML = '';
 
-            const inStockProducts = products.filter(p => p.quantity > 0);
-            const archivedProducts = products.filter(p => p.quantity <= 0);
-            
-            document.getElementById('inStockCount').textContent = inStockProducts.length;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
 
-            inStockProducts.sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate)).forEach(product => {
+            const allInStockProducts = products.filter(p => p.quantity > 0);
+            const archivedProducts = products.filter(p => p.quantity <= 0);
+
+            const filteredInStockProducts = allInStockProducts.filter(p => {
+                const nameMatch = p.name.toLowerCase().includes(searchTerm);
+                const modelMatch = p.model ? p.model.toLowerCase().includes(searchTerm) : false;
+                return nameMatch || modelMatch;
+            });
+            
+            document.getElementById('inStockCount').textContent = filteredInStockProducts.length;
+
+            filteredInStockProducts.sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate)).forEach(product => {
                 inStockList.appendChild(createProductCard(product));
             });
             
@@ -717,6 +732,10 @@
             icon.classList.toggle('fa-chevron-up');
         });
 
+        document.getElementById('searchInput').addEventListener('input', () => {
+            renderProducts(allProductsList);
+        });
+
         // --- FORM SUBMISSIONS ---
         document.getElementById('productForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -962,6 +981,15 @@
         });
         
         // --- INITIALIZATION ---
+        function setupInitialView() {
+            if (window.innerWidth >= 1024) { // lg breakpoint in Tailwind
+                // On desktop, show Sales History by default
+                document.getElementById('salesHistoryContainer').classList.remove('hidden');
+                document.getElementById('toggleSalesHistoryIcon').classList.remove('fa-chevron-down');
+                document.getElementById('toggleSalesHistoryIcon').classList.add('fa-chevron-up');
+            }
+        }
+
         window.onload = () => {
             const storedUserId = sessionStorage.getItem('inventoryUserId');
             const storedUsername = sessionStorage.getItem('inventoryUsername');
