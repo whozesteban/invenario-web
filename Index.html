@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario para Revendedores</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="LogoInventario.png">
-    <link rel="apple-touch-icon" href="https:LogoInventario.png">
+    <link rel="icon" type="image/png" href="https://i.imgur.com/r44x4Bv.png">
+    <link rel="apple-touch-icon" href="https://i.imgur.com/bDeN39x.png">
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
@@ -23,6 +23,10 @@
             from { transform: translateY(-30px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        .progress-bar-bg { background-color: #e5e7eb; }
+        .progress-bar-fill { background-color: #10b981; transition: width 0.5s ease-in-out; }
+        /* Evita que los botones de editar/borrar se envuelvan en pantallas pequeñas */
+        .action-buttons { flex-shrink: 0; }
     </style>
 </head>
 <body class="text-gray-800">
@@ -62,13 +66,16 @@
     <!-- Main App Content (hidden by default) -->
     <div id="appContent" class="hidden">
         <!-- Header -->
-        <header class="bg-white shadow-md">
+        <header class="bg-white shadow-md sticky top-0 z-40">
             <div class="container mx-auto px-4 py-4 md:px-6 flex justify-between items-center">
                 <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Mi Inventario</h1>
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2 md:space-x-4">
                     <span id="loggedInUser" class="text-sm text-gray-600 hidden md:block font-semibold"></span>
+                    <button id="createLoteBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center">
+                        <i class="fas fa-box mr-2"></i><span class="hidden md:inline">Crear Lote</span>
+                    </button>
                     <button id="addProductBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center">
-                        <i class="fas fa-plus mr-2"></i> Añadir
+                        <i class="fas fa-plus mr-2"></i><span class="hidden md:inline">Producto</span>
                     </button>
                     <button id="resetAccountBtn" title="Reiniciar Cuenta" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded-lg shadow-md flex items-center">
                         <i class="fas fa-bomb"></i>
@@ -96,6 +103,12 @@
                     <p id="totalProfit" class="text-2xl font-bold text-purple-600">$0.00</p>
                 </div>
             </section>
+            
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-boxes text-purple-500 mr-3"></i>Mis Lotes</h2>
+                <div id="lotesList" class="space-y-4"></div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div>
                     <button id="toggleInStockBtn" class="w-full text-left py-2 text-xl font-bold text-gray-700 flex justify-between items-center">
@@ -116,24 +129,11 @@
                 </div>
                 <div>
                     <button id="toggleSalesHistoryBtn" class="w-full text-left py-2 text-xl font-bold text-gray-700 flex justify-between items-center">
-                         <span class="flex items-center"><i class="fas fa-history text-indigo-500 mr-3"></i>Historial de Ventas</span>
-                         <i id="toggleSalesHistoryIcon" class="fas fa-chevron-down transition-transform"></i>
+                        <span class="flex items-center"><i class="fas fa-history text-indigo-500 mr-3"></i>Historial de Ventas (Últimas 50)</span>
+                        <i id="toggleSalesHistoryIcon" class="fas fa-chevron-down transition-transform"></i>
                     </button>
-                    <div id="salesHistoryContainer" class="hidden bg-white rounded-xl shadow p-4 max-h-[calc(50vh+48px)] overflow-y-auto">
+                    <div id="salesHistoryContainer" class="hidden bg-white rounded-xl shadow p-4 max-h-[calc(50vh+56px)] overflow-y-auto">
                         <div id="salesHistoryList" class="space-y-4"></div>
-                    </div>
-                </div>
-            </div>
-             <div class="mt-8">
-                <div class="border-b border-gray-300 mb-4">
-                    <button id="toggleArchivedBtn" class="w-full text-left py-2 text-xl font-bold text-gray-700 flex justify-between items-center">
-                        <span><i class="fas fa-archive text-gray-500 mr-3"></i>Archivados</span>
-                        <i id="toggleArchivedIcon" class="fas fa-chevron-down transition-transform"></i>
-                    </button>
-                </div>
-                <div id="archivedContainer" class="hidden">
-                    <div class="bg-white rounded-xl shadow p-4 max-h-[60vh] overflow-y-auto">
-                        <div id="archivedList" class="space-y-4"></div>
                     </div>
                 </div>
             </div>
@@ -141,11 +141,53 @@
     </div>
 
     <!-- Modals -->
+    <div id="loteModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md m-4 modal-content">
+            <h2 id="loteModalTitle" class="text-2xl font-bold mb-4">Crear Nuevo Lote</h2>
+            <form id="loteForm">
+                <input type="hidden" id="loteId">
+                <div class="mb-4">
+                    <label for="loteName" class="block text-sm font-medium text-gray-700">Nombre del Lote</label>
+                    <input type="text" id="loteName" placeholder="Ej: Caja Sorpresa #123" class="mt-1 block w-full px-3 py-2 border rounded-md" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="loteCost" class="block text-sm font-medium text-gray-700">Coste Total del Lote</label>
+                        <input type="number" id="loteCost" step="0.01" class="mt-1 block w-full px-3 py-2 border rounded-md" required>
+                    </div>
+                    <div>
+                        <label for="loteDate" class="block text-sm font-medium text-gray-700">Fecha de Compra</label>
+                        <input type="date" id="loteDate" class="mt-1 block w-full px-3 py-2 border rounded-md" required>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancelLoteBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">Guardar Lote</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div id="productModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop overflow-y-auto">
         <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md m-4 modal-content">
-            <h2 id="modalTitle" class="text-2xl font-bold mb-4">Añadir Nuevo Producto</h2>
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4">Añadir Producto</h2>
             <form id="productForm">
                 <input type="hidden" id="productId">
+                <div class="mb-4">
+                    <label for="loteSelect" class="block text-sm font-medium text-gray-700">Asociar a Lote (Opcional)</label>
+                    <select id="loteSelect" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"></select>
+                </div>
+                <div id="individualPurchaseFields">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="purchasePrice" class="block text-sm font-medium text-gray-700">Precio de Compra (c/u)</label>
+                            <input type="number" id="purchasePrice" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label for="purchaseDate" class="block text-sm font-medium text-gray-700">Fecha de Compra</label>
+                            <input type="date" id="purchaseDate" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
                         <label for="productName" class="block text-sm font-medium text-gray-700">Nombre del Producto</label>
@@ -172,16 +214,6 @@
                         <option>Caja abierta</option>
                         <option>Usado</option>
                     </select>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label for="purchasePrice" class="block text-sm font-medium text-gray-700">Precio de Compra (c/u)</label>
-                        <input type="number" id="purchasePrice" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
-                    </div>
-                    <div>
-                        <label for="purchaseDate" class="block text-sm font-medium text-gray-700">Fecha de Compra</label>
-                        <input type="date" id="purchaseDate" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
-                    </div>
                 </div>
                 <div class="mb-4">
                     <label for="platformTags" class="block text-sm font-medium text-gray-700">Plataformas (etiquetas separadas por comas)</label>
@@ -234,35 +266,13 @@
             </form>
         </div>
     </div>
-    <div id="addStockModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
-        <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm m-4 modal-content">
-            <h2 class="text-2xl font-bold mb-4">Añadir Stock</h2>
-            <form id="addStockForm">
-                <input type="hidden" id="addStockProductId">
-                <p class="mb-4 text-sm">Añadiendo stock para: <strong id="addStockProductName"></strong></p>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label for="quantityToAdd" class="block text-sm font-medium text-gray-700">Cantidad Nueva</label>
-                        <input type="number" id="quantityToAdd" min="1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
-                    </div>
-                    <div>
-                        <label for="newPurchasePrice" class="block text-sm font-medium text-gray-700">Precio Compra (c/u)</label>
-                        <input type="number" id="newPurchasePrice" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancelAddStockBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Añadir</button>
-                </div>
-            </form>
-        </div>
-    </div>
     <div id="deleteModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
         <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm m-4 modal-content text-center">
-            <input type="hidden" id="deleteProductId">
+            <input type="hidden" id="deleteId">
+            <input type="hidden" id="deleteType">
             <i class="fas fa-trash-alt text-5xl text-red-500 mb-4"></i>
-            <h2 class="text-xl font-bold mb-2">¿Eliminar este producto?</h2>
-            <p class="text-gray-600 mb-6">Esta acción es permanente. No podrás revertir las ventas pasadas de este producto.</p>
+            <h2 id="deleteModalTitle" class="text-xl font-bold mb-2"></h2>
+            <p id="deleteModalText" class="text-gray-600 mb-6"></p>
             <div class="flex justify-center space-x-3">
                 <button type="button" id="cancelDeleteBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
                 <button type="button" id="confirmDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Sí, eliminar</button>
@@ -285,13 +295,13 @@
     </div>
     <div id="resetAccountModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
         <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md m-4 modal-content text-center">
-             <i class="fas fa-skull-crossbones text-5xl text-red-500 mb-4"></i>
+            <i class="fas fa-skull-crossbones text-5xl text-red-500 mb-4"></i>
             <h2 class="text-2xl font-bold mb-2">¡ACCIÓN IRREVERSIBLE!</h2>
             <p class="text-gray-600 mb-4">Estás a punto de borrar TODOS tus productos y TODAS tus ventas. Esta acción no se puede deshacer.</p>
             <p class="text-gray-600 mb-4">Para confirmar, escribe el siguiente código de seguridad:</p>
             <p id="resetCode" class="text-2xl font-bold tracking-widest bg-gray-200 text-gray-800 rounded-md py-2 mb-4"></p>
             <input type="text" id="resetCodeInput" class="block w-full px-3 py-2 border border-gray-300 rounded-md text-center" placeholder="Escribe el código aquí">
-            <div class="flex justify-center space-x-3 mt-6">
+            <div class="flex justify-end space-x-3 mt-6">
                 <button type="button" id="cancelResetBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
                 <button type="button" id="confirmResetBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Borrar Todo</button>
             </div>
@@ -314,9 +324,15 @@
             enableIndexedDbPersistence,
             increment,
             getDoc,
-            getDocs
+            getDocs,
+            writeBatch,
+            orderBy,
+            where,
+            limit,
+            setDoc
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Your Firebase configuration object.
         const firebaseConfig = {
             apiKey: "AIzaSyC-I4FIbyVTFdOY9KS2wKCwQezHQyBkaLo",
             authDomain: "inventario-ebay.firebaseapp.com",
@@ -326,21 +342,31 @@
             appId: "1:385606504266:web:cc4ce040293ecb9dccfbb3"
         };
 
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
+        // Enable offline persistence
         enableIndexedDbPersistence(db).catch((err) => {
             if (err.code == 'failed-precondition') console.warn("Persistence failed: multiple tabs open.");
             else if (err.code == 'unimplemented') console.warn("Persistence not available in this browser.");
         });
 
-        // --- GLOBAL VARIABLES ---
+        // --- GLOBAL VARIABLES (OPTIMIZED) ---
+        let lotesCollectionRef = null;
         let productsCollectionRef = null;
         let salesCollectionRef = null;
+        let summaryRef = null; // Reference to the single summary document
+
+        let unsubscribeLotes = null;
         let unsubscribeProducts = null; 
         let unsubscribeSales = null; 
-        let allProductsList = []; 
-        let allSalesList = [];
+        let unsubscribeSummary = null;
+
+        // These lists will hold only the data currently needed for the UI.
+        let activeLotes = [];
+        let allProducts = []; // NEW: We will now store ALL products locally
+        let recentSales = [];
 
         // --- UI ELEMENTS ---
         const loginScreen = document.getElementById('loginScreen');
@@ -349,63 +375,339 @@
 
         // --- LOGIN LOGIC ---
         function showApp(userId, username) {
+            // --- START OF FIX ---
+            if (!localStorage.getItem('betaWarningShown')) {
+                alert('¡Bienvenido! Esta es una versión beta de la aplicación. Puede que encuentres errores. Todos tus datos se guardan de forma segura.');
+                localStorage.setItem('betaWarningShown', 'true');
+            }
+            // --- END OF FIX ---
+
             loginScreen.classList.add('hidden');
             appContent.classList.remove('hidden');
             document.getElementById('loggedInUser').textContent = `Usuario: ${username}`;
 
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const basePath = `artifacts/${appId}/public/data/inventories/${userId}`;
+            lotesCollectionRef = collection(db, `${basePath}/lotes`);
             productsCollectionRef = collection(db, `${basePath}/products`);
             salesCollectionRef = collection(db, `${basePath}/sales`);
+            summaryRef = doc(db, `${basePath}/summary/main`); // Path to the summary document
             
             listenForData();
             setupInitialView();
         }
 
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            const username = document.getElementById('username').value.trim().toLowerCase();
-            const pin = document.getElementById('pin').value.trim();
-
-            if (!username || !pin || !/^\d{4}$/.test(pin)) {
-                loginError.textContent = 'Por favor, introduce un usuario y un PIN de 4 dígitos.';
-                loginError.classList.remove('hidden');
-                return;
-            }
+        // --- FIRESTORE & UI RENDERING (OPTIMIZED) ---
+        function listenForData() {
+            if (!lotesCollectionRef || !productsCollectionRef || !salesCollectionRef) return;
             
-            loginError.classList.add('hidden');
-            const userId = `user-pin-login-${username}-${pin}`;
-            sessionStorage.setItem('inventoryUserId', userId);
-            sessionStorage.setItem('inventoryUsername', username);
-            showApp(userId, username);
-        });
-
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            sessionStorage.removeItem('inventoryUserId');
-            sessionStorage.removeItem('inventoryUsername');
+            // Unsubscribe from previous listeners if they exist
+            if (unsubscribeLotes) unsubscribeLotes();
             if (unsubscribeProducts) unsubscribeProducts();
             if (unsubscribeSales) unsubscribeSales();
-            clearUI();
-            loginScreen.classList.remove('hidden');
-            appContent.classList.add('hidden');
-        });
+            if (unsubscribeSummary) unsubscribeSummary();
 
-        // --- FIRESTORE & UI RENDERING ---
-        function listenForData() {
-            if (!productsCollectionRef || !salesCollectionRef) return;
-            
-            const productsQuery = query(productsCollectionRef);
+            // 1. Listen for all lots, ordered by date
+            const lotesQuery = query(lotesCollectionRef, orderBy("purchaseDate", "desc"));
+            unsubscribeLotes = onSnapshot(lotesQuery, (snapshot) => {
+                activeLotes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderLotes();
+            });
+
+            // 2. Listen for ALL products. Filtering will happen on the client side.
+            const productsQuery = query(productsCollectionRef, orderBy("purchaseDate", "desc"));
             unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
-                allProductsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderProducts(allProductsList);
-                updateSummary(allProductsList, allSalesList);
-            }, (error) => console.error("Error fetching products:", error));
+                allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProducts();
+                renderLotes();
+            });
 
-            const salesQuery = query(salesCollectionRef);
+            // 3. Listen ONLY for the last 50 sales to keep the history view fast
+            const salesQuery = query(salesCollectionRef, orderBy("saleDate", "desc"), limit(50));
             unsubscribeSales = onSnapshot(salesQuery, (snapshot) => {
-                allSalesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderSalesHistory(allSalesList);
-                updateSummary(allProductsList, allSalesList);
-            }, (error) => console.error("Error fetching sales:", error));
+                recentSales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderSalesHistory();
+                renderLotes();
+            });
+
+            // 4. Listen to the single summary document for ultra-fast UI updates
+            unsubscribeSummary = onSnapshot(summaryRef, (doc) => {
+                if (doc.exists()) {
+                    const summaryData = doc.data();
+                    document.getElementById('totalInvestment').textContent = `$${(summaryData.totalInvestment || 0).toFixed(2)}`;
+                    document.getElementById('totalRevenue').textContent = `$${(summaryData.totalRevenue || 0).toFixed(2)}`;
+                    document.getElementById('totalProfit').textContent = `$${(summaryData.totalProfit || 0).toFixed(2)}`;
+                } else {
+                    // If summary doc doesn't exist, create it.
+                    recalculateAndSaveSummary();
+                }
+            });
+        }
+
+        // NEW: Efficiently recalculates the entire summary and saves it to Firestore.
+        // This is called only after major data changes.
+        async function recalculateAndSaveSummary() {
+            if (!lotesCollectionRef || !productsCollectionRef || !salesCollectionRef || !summaryRef) return;
+
+            const [lotesSnapshot, allProductsSnapshot, allSalesSnapshot] = await Promise.all([
+                getDocs(query(lotesCollectionRef)),
+                getDocs(query(productsCollectionRef)),
+                getDocs(query(salesCollectionRef))
+            ]);
+
+            const allLotesData = lotesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const allProductsData = allProductsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const allSalesData = allSalesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const individualProductsValue = allProductsData
+                .filter(p => !p.loteId && p.quantity > 0)
+                .reduce((sum, p) => sum + ((p.purchasePrice || 0) * p.quantity), 0);
+
+            const lotesValue = allLotesData.reduce((sum, lote) => {
+                const productsInLote = allProductsData.filter(p => p.loteId === lote.id);
+                const totalInitialStock = productsInLote.reduce((s, p) => s + (p.initialQuantity || 0), 0);
+                const currentStock = productsInLote.reduce((s, p) => s + p.quantity, 0);
+                const costPerItem = totalInitialStock > 0 ? lote.cost / totalInitialStock : 0;
+                return sum + (currentStock * costPerItem);
+            }, 0);
+            
+            const totalInvestment = individualProductsValue + lotesValue;
+            const totalRevenue = allSalesData.reduce((sum, sale) => sum + (sale.salePrice * sale.quantitySold), 0);
+            const totalProfit = allSalesData.reduce((sum, sale) => sum + ((sale.salePrice - sale.purchasePriceAtTimeOfSale) * sale.quantitySold), 0);
+
+            await setDoc(summaryRef, { totalInvestment, totalRevenue, totalProfit });
+        }
+
+        // NEW: Incrementally updates the summary document for simple operations.
+        async function updateSummaryIncrementally({ investmentDelta = 0, revenueDelta = 0, profitDelta = 0 }) {
+            if (!summaryRef) return;
+            const summaryDoc = await getDoc(summaryRef);
+            if (!summaryDoc.exists()) {
+                recalculateAndSaveSummary(); 
+            } else {
+                await updateDoc(summaryRef, {
+                    totalInvestment: increment(investmentDelta),
+                    totalRevenue: increment(revenueDelta),
+                    totalProfit: increment(profitDelta)
+                });
+            }
+        }
+
+        function renderLotes() {
+            const lotesList = document.getElementById('lotesList');
+            if (!lotesList) return;
+            const openDetails = new Set();
+            lotesList.querySelectorAll('.lote-details-container:not(.hidden)').forEach(el => {
+                openDetails.add(el.id.replace('lote-details-', ''));
+            });
+
+            lotesList.innerHTML = '';
+            activeLotes.forEach(lote => {
+                const card = createLoteCard(lote);
+                lotesList.appendChild(card);
+                if (openDetails.has(lote.id)) {
+                    const detailsContainer = card.querySelector('.lote-details-container');
+                    detailsContainer.classList.remove('hidden');
+                    refreshLoteDetails(lote.id);
+                }
+            });
+        }
+
+        function refreshLoteDetails(loteId) {
+            const detailsContainer = document.getElementById(`lote-details-${loteId}`);
+            if (!detailsContainer) return;
+
+            const productsInLote = allProducts.filter(p => p.loteId === loteId);
+            const salesInLote = recentSales.filter(s => s.loteId === loteId);
+            
+            let productsHtml = productsInLote.length ? productsInLote.map(p => `<p class="text-sm">${p.name} (Stock: ${p.quantity}, Cant. Inicial: ${p.initialQuantity})</p>`).join('') : '<p class="text-sm text-gray-500">No hay productos asociados.</p>';
+            let salesHtml = salesInLote.length ? salesInLote.map(s => `<p class="text-sm">${s.quantitySold}x ${s.productName} por $${s.salePrice.toFixed(2)} c/u</p>`).join('') : '<p class="text-sm text-gray-500">No hay ventas asociadas.</p>';
+            
+            detailsContainer.innerHTML = `
+                <h4 class="font-bold mb-2">Productos en este lote:</h4>
+                <div class="space-y-2 max-h-48 overflow-y-auto">${productsHtml}</div>
+                <h4 class="font-bold mt-4 mb-2">Ventas de este lote:</h4>
+                <div class="space-y-2 max-h-48 overflow-y-auto">${salesHtml}</div>
+            `;
+        }
+
+        function createLoteCard(lote) {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-xl shadow-lg border border-gray-200';
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="font-bold text-xl">${lote.name}</h3>
+                        <p class="text-sm text-gray-500">${lote.purchaseDate}</p>
+                    </div>
+                    <div class="flex items-center space-x-2 action-buttons">
+                        <button data-id='${lote.id}' class="edit-lote-btn text-gray-400 hover:text-yellow-600 p-1" title="Editar Lote">
+                            <i class="fas fa-pencil"></i>
+                        </button>
+                        <button data-id="${lote.id}" class="toggle-details-btn text-blue-500 hover:text-blue-700 p-1" title="Ver Detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button data-id="${lote.id}" class="delete-lote-btn text-gray-400 hover:text-red-600 p-1" title="Eliminar Lote">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Coste: <strong class="text-red-500">$${lote.cost.toFixed(2)}</strong></span>
+                        <span>Ingresos: <strong class="text-green-500 lote-revenue"><i class="fas fa-spinner fa-spin fa-xs"></i></strong></span>
+                        <span>Ganancia: <strong class="lote-profit"><i class="fas fa-spinner fa-spin fa-xs"></i></strong></span>
+                    </div>
+                    <div class="w-full progress-bar-bg rounded-full h-2.5">
+                        <div class="progress-bar-fill h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div id="lote-details-${lote.id}" class="hidden mt-4 pt-4 border-t lote-details-container">
+                    <div class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
+                </div>
+            `;
+
+            const loteSalesQuery = query(salesCollectionRef, where("loteId", "==", lote.id));
+            getDocs(loteSalesQuery).then(salesSnapshot => {
+                const loteSales = salesSnapshot.docs.map(d => d.data());
+                const totalRevenue = loteSales.reduce((sum, sale) => sum + (sale.salePrice * sale.quantitySold), 0);
+                const profit = totalRevenue - lote.cost;
+                const roiPercentage = lote.cost > 0 ? (totalRevenue / lote.cost) * 100 : 0;
+                const profitColor = profit >= 0 ? 'text-green-600' : 'text-red-600';
+                const revenueEl = card.querySelector('.lote-revenue');
+                const profitEl = card.querySelector('.lote-profit');
+                if (revenueEl) revenueEl.textContent = `$${totalRevenue.toFixed(2)}`;
+                if (profitEl) {
+                    profitEl.textContent = `$${profit.toFixed(2)}`;
+                    profitEl.className = `font-bold ${profitColor}`;
+                }
+                card.querySelector('.progress-bar-fill').style.width = `${Math.min(roiPercentage, 100)}%`;
+            });
+
+            card.querySelector('.edit-lote-btn').addEventListener('click', () => {
+                const loteData = activeLotes.find(l => l.id === lote.id);
+                if (loteData) openEditLoteModal(loteData);
+            });
+
+            card.querySelector('.toggle-details-btn').addEventListener('click', async () => {
+                const detailsContainer = document.getElementById(`lote-details-${lote.id}`);
+                const isHidden = detailsContainer.classList.contains('hidden');
+                detailsContainer.classList.toggle('hidden');
+                if (isHidden) {
+                    refreshLoteDetails(lote.id);
+                }
+            });
+
+            card.querySelector('.delete-lote-btn').addEventListener('click', () => openDeleteModal(lote.id, 'lote', lote.name));
+            return card;
+        }
+
+        function renderProducts() {
+            const inStockList = document.getElementById('inStockList');
+            if (!inStockList) return;
+            inStockList.innerHTML = '';
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const inStockProducts = allProducts.filter(p => p.quantity > 0);
+            const filteredProducts = inStockProducts.filter(p => p.name.toLowerCase().includes(searchTerm) || (p.model && p.model.toLowerCase().includes(searchTerm)));
+            document.getElementById('inStockCount').textContent = filteredProducts.length;
+            if (filteredProducts.length === 0) {
+                inStockList.innerHTML = `<p class="text-center text-gray-500 py-4">No hay productos en venta que coincidan.</p>`;
+            } else {
+                filteredProducts.forEach(product => inStockList.appendChild(createProductCard(product)));
+            }
+        }
+
+        function renderSalesHistory() {
+            const salesHistoryList = document.getElementById('salesHistoryList');
+            if (!salesHistoryList) return;
+            salesHistoryList.innerHTML = '';
+            if (recentSales.length === 0) {
+                salesHistoryList.innerHTML = `<p class="text-center text-gray-500 py-4">Aún no has registrado ninguna venta.</p>`;
+            } else {
+                recentSales.forEach(sale => salesHistoryList.appendChild(createSaleCard(sale)));
+            }
+        }
+        
+        function createProductCard(product) {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-xl shadow-lg border border-gray-200';
+            const placeholderImage = `https://placehold.co/400x300/e2e8f0/64748b?text=${encodeURIComponent(product.name)}`;
+            card.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-4">
+                    <img src="${product.imageUrl || placeholderImage}" onerror="this.onerror=null;this.src='${placeholderImage}';" alt="Foto de ${product.name}" class="w-full md:w-32 h-32 object-contain bg-gray-100 rounded-lg">
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center mb-1 flex-wrap">${getConditionBadge(product.condition)}</div>
+                            <div class="text-lg font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">Stock: ${product.quantity}</div>
+                        </div>
+                        <h3 class="font-bold text-lg">${product.name}</h3>
+                        <p class="text-sm text-gray-600 italic">${product.model || ''}</p>
+                        <p class="text-sm text-gray-500 font-semibold mb-2"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>${product.location || 'Sin ubicación'}</p>
+                        <div class="flex flex-wrap items-center mt-2">${getPlatformTags(product.sellingPlatforms)}</div>
+                    </div>
+                    <div class="flex flex-col space-y-2 justify-center items-center md:items-end mt-4 md:mt-0">
+                        <button data-id="${product.id}" class="mark-sold-btn w-full md:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-dollar-sign mr-2"></i>Vender</button>
+                        <button data-id="${product.id}" class="edit-btn w-full md:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-pencil mr-2"></i>Editar</button>
+                        <button data-id="${product.id}" class="delete-btn w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i>Borrar</button>
+                    </div>
+                </div>
+            `;
+            card.querySelector('.mark-sold-btn').addEventListener('click', () => openSoldModal(product));
+            card.querySelector('.edit-btn').addEventListener('click', () => openEditModal(product));
+            card.querySelector('.delete-btn').addEventListener('click', () => openDeleteModal(product.id, 'product', product.name));
+            return card;
+        }
+
+        function createSaleCard(sale) {
+            const card = document.createElement('div');
+            
+            if (sale.loteId) {
+                card.className = 'bg-purple-50 border border-purple-200 p-3 rounded-xl shadow relative';
+                card.innerHTML = `
+                    <button data-sale-id="${sale.id}" data-product-id="${sale.productId}" data-quantity="${sale.quantitySold}" class="delete-sale-btn absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors p-1">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                    <div>
+                        <div class="flex justify-between items-center pr-8">
+                            <h4 class="font-bold truncate mr-2">${sale.productName}<span class="ml-2 text-xs font-semibold text-purple-800 bg-purple-200 px-2 py-0.5 rounded-full align-middle">Lote</span></h4>
+                            <span class="text-xs text-gray-500 flex-shrink-0">${sale.saleDate}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">Cantidad: <strong>${sale.quantitySold}</strong> | Vendido en: <strong>${sale.soldPlatform}</strong></p>
+                        <div class="flex justify-between items-end mt-1">
+                            <p class="text-sm">Precio Venta: <span class="font-semibold text-green-700">$${Number(sale.salePrice).toFixed(2)} c/u</span></p>
+                            <p class="text-md font-bold">Aporta al Lote: <span class="text-purple-600">$${(sale.salePrice * sale.quantitySold).toFixed(2)}</span></p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                card.className = 'bg-white p-3 rounded-xl shadow relative';
+                const profit = (sale.salePrice - sale.purchasePriceAtTimeOfSale) * sale.quantitySold;
+                const profitColor = profit >= 0 ? 'text-green-600' : 'text-red-600';
+                const profitSign = profit >= 0 ? '+' : '';
+                card.innerHTML = `
+                    <button data-sale-id="${sale.id}" data-product-id="${sale.productId}" data-quantity="${sale.quantitySold}" class="delete-sale-btn absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors p-1">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                    <div>
+                        <div class="flex justify-between items-center pr-8">
+                            <h4 class="font-bold truncate mr-2">${sale.productName}</h4>
+                            <span class="text-xs text-gray-500 flex-shrink-0">${sale.saleDate}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">Cantidad: <strong>${sale.quantitySold}</strong> | Vendido en: <strong>${sale.soldPlatform}</strong></p>
+                        <div class="flex justify-between items-end mt-1">
+                            <p class="text-sm">Precio Venta: <span class="font-semibold text-green-700">$${Number(sale.salePrice).toFixed(2)} c/u</span></p>
+                            <p class="text-md font-bold">Ganancia: <span class="${profitColor}">${profitSign}$${profit.toFixed(2)}</span></p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            card.querySelector('.delete-sale-btn').addEventListener('click', (e) => {
+                const button = e.currentTarget;
+                openDeleteSaleModal({ id: button.dataset.saleId, productId: button.dataset.productId, quantity: parseInt(button.dataset.quantity, 10) });
+            });
+            return card;
         }
         
         function getConditionBadge(condition) {
@@ -417,519 +719,380 @@
                 case 'Caja abierta': colorClasses = 'bg-yellow-100 text-yellow-800'; break;
                 case 'Usado': colorClasses = 'bg-red-100 text-red-800'; break;
             }
-            return `<span class="text-xs font-medium mr-2 px-2.5 py-0.5 rounded ${colorClasses}">${condition}</span>`;
+            return `<span class="text-xs font-medium mr-2 mb-1 px-2.5 py-0.5 rounded ${colorClasses}">${condition}</span>`;
         }
 
         function getPlatformTags(platforms = []) {
             if (!platforms.length) return '';
-            return platforms.map(p => `<span class="bg-gray-200 text-gray-700 text-xs font-semibold mr-2 mb-2 px-2.5 py-0.5 rounded-full">${p}</span>`).join('');
+            return platforms.map(p => `<span class="bg-gray-200 text-gray-700 text-xs font-semibold mr-2 mb-1 px-2.5 py-0.5 rounded-full">${p}</span>`).join('');
         }
 
-        function renderProducts(products) {
-            const inStockList = document.getElementById('inStockList');
-            const archivedList = document.getElementById('archivedList');
-            inStockList.innerHTML = '';
-            archivedList.innerHTML = '';
-
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-
-            const allInStockProducts = products.filter(p => p.quantity > 0);
-            const archivedProducts = products.filter(p => p.quantity <= 0);
-
-            const filteredInStockProducts = allInStockProducts.filter(p => {
-                const nameMatch = p.name.toLowerCase().includes(searchTerm);
-                const modelMatch = p.model ? p.model.toLowerCase().includes(searchTerm) : false;
-                return nameMatch || modelMatch;
-            });
-            
-            document.getElementById('inStockCount').textContent = filteredInStockProducts.length;
-
-            filteredInStockProducts.sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate)).forEach(product => {
-                inStockList.appendChild(createProductCard(product));
-            });
-            
-            archivedProducts.sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate)).forEach(product => {
-                archivedList.appendChild(createArchivedCard(product));
-            });
-        }
-
-        function renderSalesHistory(sales) {
-            const salesHistoryList = document.getElementById('salesHistoryList');
-            salesHistoryList.innerHTML = '';
-            const sortedSales = sales.sort((a, b) => new Date(b.saleDate) - new Date(a.saleDate));
-            sortedSales.forEach(sale => {
-                salesHistoryList.appendChild(createSaleCard(sale));
-            });
-        }
-        
-        function createProductCard(product) {
-            const card = document.createElement('div');
-            card.className = 'bg-white p-4 rounded-xl shadow-lg border border-gray-200';
-            const placeholderImage = `https://placehold.co/400x300/e2e8f0/64748b?text=${encodeURIComponent(product.name)}`;
-            
-            card.innerHTML = `
-                <div class="flex flex-col md:flex-row gap-4">
-                    <img src="${product.imageUrl || placeholderImage}" onerror="this.onerror=null;this.src='${placeholderImage}';" alt="Foto de ${product.name}" class="w-full md:w-32 h-32 object-contain bg-gray-100 rounded-lg">
-                    <div class="flex-grow">
-                        <div class="flex justify-between items-start">
-                           <div class="flex items-center mb-1">
-                               ${getConditionBadge(product.condition)}
-                           </div>
-                           <div class="text-lg font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
-                               Stock: ${product.quantity}
-                           </div>
-                        </div>
-                        <h3 class="font-bold text-lg">${product.name}</h3>
-                        <p class="text-sm text-gray-600 italic">${product.model || ''}</p>
-                        <p class="text-sm text-gray-500 font-semibold mb-2"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>${product.location || 'Sin ubicación'}</p>
-                        <p class="text-sm text-gray-500">Comprado el: ${product.purchaseDate}</p>
-                        <p class="text-md font-semibold">Precio Compra Prom: <span class="text-red-500">$${Number(product.purchasePrice).toFixed(2)} c/u</span></p>
-                        <div class="flex flex-wrap items-center mt-2">
-                            ${getPlatformTags(product.sellingPlatforms)}
-                        </div>
-                    </div>
-                    <div class="flex flex-col space-y-2 justify-center items-center md:items-end mt-4 md:mt-0">
-                        <button data-id="${product.id}" class="add-stock-btn w-full md:w-auto bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-plus-circle mr-2"></i>Añadir Stock</button>
-                        <button data-id="${product.id}" class="mark-sold-btn w-full md:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-dollar-sign mr-2"></i>Vender</button>
-                        <button data-id="${product.id}" class="edit-btn w-full md:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-pencil mr-2"></i>Editar</button>
-                        <button data-id="${product.id}" class="delete-btn w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i>Borrar</button>
-                    </div>
-                </div>
-            `;
-            card.querySelector('.add-stock-btn').addEventListener('click', () => openAddStockModal(product.id));
-            card.querySelector('.mark-sold-btn').addEventListener('click', () => openSoldModal(product));
-            card.querySelector('.edit-btn').addEventListener('click', () => openEditModal(product));
-            card.querySelector('.delete-btn').addEventListener('click', () => openDeleteModal(product.id));
-            return card;
-        }
-
-        function createArchivedCard(product) {
-            const card = document.createElement('div');
-            card.className = 'bg-gray-100 p-4 rounded-xl shadow-md border border-gray-200';
-            const placeholderImage = `https://placehold.co/400x300/e2e8f0/64748b?text=${encodeURIComponent(product.name)}`;
-            
-            card.innerHTML = `
-                <div class="flex flex-col md:flex-row gap-4">
-                    <img src="${product.imageUrl || placeholderImage}" onerror="this.onerror=null;this.src='${placeholderImage}';" alt="Foto de ${product.name}" class="w-full md:w-24 h-24 object-contain bg-gray-200 rounded-lg">
-                    <div class="flex-grow">
-                        <h3 class="font-bold text-md text-gray-800">${product.name}</h3>
-                        <p class="text-sm text-gray-500 italic">${product.model || ''}</p>
-                    </div>
-                    <div class="flex flex-col space-y-2 justify-center items-center md:items-end mt-4 md:mt-0">
-                        <button data-id="${product.id}" class="relist-btn w-full md:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-redo mr-2"></i>Volver a Listar</button>
-                        <button data-id="${product.id}" class="delete-btn w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i>Borrar</button>
-                    </div>
-                </div>
-            `;
-            card.querySelector('.relist-btn').addEventListener('click', () => openRelistModal(product));
-            card.querySelector('.delete-btn').addEventListener('click', () => openDeleteModal(product.id));
-            return card;
-        }
-
-        function createSaleCard(sale) {
-            const card = document.createElement('div');
-            card.className = 'bg-white p-3 rounded-xl shadow relative';
-            const profit = (sale.salePrice - sale.purchasePriceAtTimeOfSale) * sale.quantitySold;
-            const profitColor = profit > 0 ? 'text-green-600' : 'text-red-600';
-            const profitSign = profit > 0 ? '+' : '';
-
-            card.innerHTML = `
-                <button data-sale-id="${sale.id}" data-product-id="${sale.productId}" data-quantity="${sale.quantitySold}" class="delete-sale-btn absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors p-1">
-                    <i class="fas fa-times-circle"></i>
-                </button>
-                <div>
-                    <div class="flex justify-between items-center pr-8">
-                        <h4 class="font-bold truncate mr-2">${sale.productName}</h4>
-                        <span class="text-xs text-gray-500 flex-shrink-0">${sale.saleDate}</span>
-                    </div>
-                    <p class="text-sm text-gray-600 mt-1">Cantidad: <strong>${sale.quantitySold}</strong> | Vendido en: <strong>${sale.soldPlatform}</strong></p>
-                    <div class="flex justify-between items-end mt-1">
-                        <p class="text-sm">Precio Venta: <span class="font-semibold text-green-700">$${Number(sale.salePrice).toFixed(2)} c/u</span></p>
-                        <p class="text-md font-bold">Ganancia: <span class="${profitColor}">${profitSign}$${profit.toFixed(2)}</span></p>
-                    </div>
-                </div>
-            `;
-            card.querySelector('.delete-sale-btn').addEventListener('click', (e) => {
-                const button = e.currentTarget;
-                const saleData = {
-                    id: button.dataset.saleId,
-                    productId: button.dataset.productId,
-                    quantity: parseInt(button.dataset.quantity, 10)
-                };
-                openDeleteSaleModal(saleData);
-            });
-            return card;
-        }
-
-        function updateSummary(products, sales) {
-            let totalInvestment = 0;
-            products.forEach(p => {
-                if (p.quantity > 0) {
-                    totalInvestment += (Number(p.purchasePrice) || 0) * (Number(p.quantity) || 0);
-                }
-            });
-
-            let totalRevenue = 0;
-            let totalProfit = 0;
-            sales.forEach(s => {
-                const saleRevenue = (Number(s.salePrice) || 0) * (Number(s.quantitySold) || 0);
-                totalRevenue += saleRevenue;
-                totalProfit += saleRevenue - ((Number(s.purchasePriceAtTimeOfSale) || 0) * (Number(s.quantitySold) || 0));
-            });
-            
-            document.getElementById('totalInvestment').textContent = `$${totalInvestment.toFixed(2)}`;
-            document.getElementById('totalRevenue').textContent = `$${totalRevenue.toFixed(2)}`;
-            document.getElementById('totalProfit').textContent = `$${totalProfit.toFixed(2)}`;
-        }
-        
-        function clearUI() {
-            document.getElementById('inStockList').innerHTML = '';
-            document.getElementById('salesHistoryList').innerHTML = '';
-            document.getElementById('archivedList').innerHTML = '';
-            updateSummary([], []);
-        }
-
-        // --- MODAL HANDLING ---
+        const loteModal = document.getElementById('loteModal');
         const productModal = document.getElementById('productModal');
         const soldModal = document.getElementById('soldModal');
-        const addStockModal = document.getElementById('addStockModal');
         const deleteModal = document.getElementById('deleteModal');
         const deleteSaleModal = document.getElementById('deleteSaleModal');
         const resetAccountModal = document.getElementById('resetAccountModal');
 
-        document.getElementById('addProductBtn').addEventListener('click', () => {
-            document.getElementById('productForm').reset();
-            document.getElementById('productId').value = '';
-            document.getElementById('modalTitle').textContent = 'Añadir Nuevo Producto';
-            document.getElementById('quantity').disabled = false;
-            document.getElementById('purchaseDate').valueAsDate = new Date();
-            productModal.style.display = 'flex';
-        });
+        function openEditLoteModal(lote) {
+            const form = document.getElementById('loteForm');
+            form.reset();
+            document.getElementById('loteModalTitle').textContent = 'Editar Lote';
+            document.getElementById('loteId').value = lote.id;
+            document.getElementById('loteName').value = lote.name;
+            document.getElementById('loteCost').value = lote.cost;
+            document.getElementById('loteDate').value = lote.purchaseDate;
+            loteModal.style.display = 'flex';
+        }
 
         function openEditModal(product) {
-            document.getElementById('productForm').reset();
+            const form = document.getElementById('productForm');
+            form.reset();
             document.getElementById('modalTitle').textContent = 'Editar Producto';
             document.getElementById('productId').value = product.id;
             document.getElementById('productName').value = product.name;
             document.getElementById('productModel').value = product.model || '';
             document.getElementById('productLocation').value = product.location || '';
             document.getElementById('productCondition').value = product.condition || 'Nuevo';
-            document.getElementById('purchasePrice').value = product.purchasePrice;
-            document.getElementById('purchaseDate').value = product.purchaseDate;
-            document.getElementById('imageUrl').value = product.imageUrl || '';
             document.getElementById('platformTags').value = (product.sellingPlatforms || []).join(', ');
+            document.getElementById('imageUrl').value = product.imageUrl || '';
             
-            document.getElementById('quantity').value = product.quantity;
-            document.getElementById('quantity').disabled = true;
+            // Hide and disable fields not editable after creation
+            document.getElementById('loteSelect').parentElement.classList.add('hidden');
+            document.getElementById('individualPurchaseFields').classList.add('hidden');
+            document.getElementById('quantity').parentElement.parentElement.classList.add('hidden');
+            document.getElementById('quantity').required = false;
+            document.getElementById('purchasePrice').required = false;
+            document.getElementById('purchaseDate').required = false;
 
             productModal.style.display = 'flex';
         }
         
-        function openSoldModal(product) { 
-            if (!product) return;
-
+        async function openSoldModal(product) {
             document.getElementById('soldForm').reset();
             document.getElementById('soldProductId').value = product.id;
             document.getElementById('saleDate').valueAsDate = new Date();
-            
-            document.getElementById('costBasisDisplay').textContent = `$${Number(product.purchasePrice).toFixed(2)} c/u`;
-            
             const quantityInput = document.getElementById('quantitySold');
-            quantityInput.max = product.quantity;
             quantityInput.value = 1;
-
-            const soldPlatformSelect = document.getElementById('soldPlatform');
-            soldPlatformSelect.innerHTML = ''; 
-
-            const platforms = product.sellingPlatforms || [];
-            if (platforms.length === 0) platforms.push('Otro'); 
-
-            platforms.forEach(platform => {
+            quantityInput.max = product.quantity;
+            const platformSelect = document.getElementById('soldPlatform');
+            platformSelect.innerHTML = '';
+            const platforms = product.sellingPlatforms && product.sellingPlatforms.length > 0 ? product.sellingPlatforms : ['Otro'];
+            platforms.forEach(p => {
                 const option = document.createElement('option');
-                option.value = platform;
-                option.textContent = platform;
-                soldPlatformSelect.appendChild(option);
+                option.value = p;
+                option.textContent = p;
+                platformSelect.appendChild(option);
             });
-            
-            if (!platforms.includes('Otro')) {
-                 const otherOption = document.createElement('option');
-                 otherOption.value = 'Otro';
-                 otherOption.textContent = 'Otro';
-                 soldPlatformSelect.appendChild(otherOption);
+            let purchasePrice = product.purchasePrice || 0;
+            if (product.loteId) {
+                const loteDoc = await getDoc(doc(lotesCollectionRef, product.loteId));
+                if (loteDoc.exists()) {
+                    const lote = loteDoc.data();
+                    const productsInLoteQuery = query(productsCollectionRef, where("loteId", "==", product.loteId));
+                    const productsSnapshot = await getDocs(productsInLoteQuery);
+                    const totalInitialQty = productsSnapshot.docs.reduce((sum, pDoc) => sum + (pDoc.data().initialQuantity || 0), 0);
+                    purchasePrice = totalInitialQty > 0 ? lote.cost / totalInitialQty : 0;
+                }
             }
-
+            document.getElementById('costBasisDisplay').textContent = `$${purchasePrice.toFixed(2)} / unidad`;
             soldModal.style.display = 'flex';
         }
-
-        function openAddStockModal(id) {
-            const product = allProductsList.find(p => p.id === id);
-            if (!product) return;
-            document.getElementById('addStockForm').reset();
-            document.getElementById('addStockProductId').value = id;
-            document.getElementById('addStockProductName').textContent = product.name;
-            addStockModal.style.display = 'flex';
-        }
-
-        function openRelistModal(product) {
-            document.getElementById('productForm').reset();
-            document.getElementById('modalTitle').textContent = 'Volver a Listar Producto';
-            document.getElementById('productId').value = product.id;
-            document.getElementById('productName').value = product.name;
-            document.getElementById('productModel').value = product.model || '';
-            document.getElementById('productLocation').value = product.location || '';
-            document.getElementById('productCondition').value = product.condition || 'Nuevo';
-            document.getElementById('imageUrl').value = product.imageUrl || '';
-            document.getElementById('platformTags').value = (product.sellingPlatforms || []).join(', ');
-            
-            document.getElementById('quantity').disabled = false;
-            document.getElementById('quantity').value = 1;
-            document.getElementById('purchaseDate').valueAsDate = new Date();
-
-            productModal.style.display = 'flex';
-        }
         
-        function openDeleteModal(id) {
-            document.getElementById('deleteProductId').value = id;
+        function openDeleteModal(id, type, name) {
+            document.getElementById('deleteId').value = id;
+            document.getElementById('deleteType').value = type;
+            const title = document.getElementById('deleteModalTitle');
+            const text = document.getElementById('deleteModalText');
+            title.textContent = type === 'lote' ? `¿Eliminar el lote "${name}"?` : `¿Eliminar el producto "${name}"?`;
+            text.textContent = type === 'lote' ? 'Esto eliminará permanentemente el lote Y TODOS los productos asociados a él. Esta acción no se puede deshacer.' : 'El producto se eliminará permanentemente. Esta acción no se puede deshacer.';
             deleteModal.style.display = 'flex';
         }
 
-        function openDeleteSaleModal(sale) {
-            document.getElementById('deleteSaleId').value = sale.id;
-            document.getElementById('deleteSaleProductId').value = sale.productId;
-            document.getElementById('deleteSaleQuantity').value = sale.quantity;
+        function openDeleteSaleModal(saleData) {
+            document.getElementById('deleteSaleId').value = saleData.id;
+            document.getElementById('deleteSaleProductId').value = saleData.productId;
+            document.getElementById('deleteSaleQuantity').value = saleData.quantity;
             deleteSaleModal.style.display = 'flex';
         }
 
-        document.getElementById('cancelProductBtn').addEventListener('click', () => productModal.style.display = 'none');
-        document.getElementById('cancelSoldBtn').addEventListener('click', () => soldModal.style.display = 'none');
-        document.getElementById('cancelAddStockBtn').addEventListener('click', () => addStockModal.style.display = 'none');
-        document.getElementById('cancelDeleteBtn').addEventListener('click', () => deleteModal.style.display = 'none');
-        document.getElementById('cancelDeleteSaleBtn').addEventListener('click', () => deleteSaleModal.style.display = 'none');
-        document.getElementById('cancelResetBtn').addEventListener('click', () => resetAccountModal.style.display = 'none');
-        
-        document.getElementById('toggleInStockBtn').addEventListener('click', () => {
-            const icon = document.getElementById('toggleInStockIcon');
-            const list = document.getElementById('inStockWrapper');
-            list.classList.toggle('hidden');
-            icon.classList.toggle('fa-chevron-down');
-            icon.classList.toggle('fa-chevron-up');
-        });
-
-        document.getElementById('toggleSalesHistoryBtn').addEventListener('click', () => {
-            const icon = document.getElementById('toggleSalesHistoryIcon');
-            const list = document.getElementById('salesHistoryContainer');
-            list.classList.toggle('hidden');
-            icon.classList.toggle('fa-chevron-down');
-            icon.classList.toggle('fa-chevron-up');
-        });
-
-        document.getElementById('toggleArchivedBtn').addEventListener('click', () => {
-            const icon = document.getElementById('toggleArchivedIcon');
-            const list = document.getElementById('archivedContainer');
-            list.classList.toggle('hidden');
-            icon.classList.toggle('fa-chevron-down');
-            icon.classList.toggle('fa-chevron-up');
-        });
-
-        document.getElementById('searchInput').addEventListener('input', () => {
-            renderProducts(allProductsList);
-        });
-
-        // --- FORM SUBMISSIONS ---
-        document.getElementById('productForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('productId').value;
-            
-            const tagsString = document.getElementById('platformTags').value;
-            const sellingPlatforms = tagsString.split(',').map(tag => tag.trim()).filter(tag => tag);
-
-            const productData = {
-                name: document.getElementById('productName').value,
-                model: document.getElementById('productModel').value,
-                location: document.getElementById('productLocation').value,
-                condition: document.getElementById('productCondition').value,
-                purchasePrice: parseFloat(document.getElementById('purchasePrice').value),
-                purchaseDate: document.getElementById('purchaseDate').value,
-                imageUrl: document.getElementById('imageUrl').value,
-                sellingPlatforms: sellingPlatforms,
-                quantity: parseInt(document.getElementById('quantity').value, 10)
-            };
-
-            try {
-                if (id) { // Editing or Re-listing
-                    await updateDoc(doc(productsCollectionRef, id), productData);
-                } else { // Adding new
-                    await addDoc(productsCollectionRef, productData);
+        function setupEventListeners() {
+            document.getElementById('loginBtn').addEventListener('click', () => {
+                const username = document.getElementById('username').value.trim().toLowerCase();
+                const pin = document.getElementById('pin').value.trim();
+                if (!username || !pin || !/^\d{4}$/.test(pin)) {
+                    loginError.textContent = 'Por favor, introduce un usuario y un PIN de 4 dígitos.';
+                    loginError.classList.remove('hidden');
+                    return;
                 }
-                productModal.style.display = 'none';
-            } catch (error) {
-                console.error("Error al guardar el producto: ", error);
-            }
-        });
+                loginError.classList.add('hidden');
+                const userId = `user-pin-login-${username}-${pin}`;
+                sessionStorage.setItem('inventoryUserId', userId);
+                sessionStorage.setItem('inventoryUsername', username);
+                showApp(userId, username);
+            });
 
-        document.getElementById('soldForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const productId = document.getElementById('soldProductId').value;
-            const productRef = doc(productsCollectionRef, productId);
-            
-            const product = allProductsList.find(p => p.id === productId);
-            if (!product) {
-                alert("Error: No se pudo encontrar el producto para vender.");
-                return;
-            }
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                sessionStorage.clear();
+                if (unsubscribeLotes) unsubscribeLotes();
+                if (unsubscribeProducts) unsubscribeProducts();
+                if (unsubscribeSales) unsubscribeSales();
+                if (unsubscribeSummary) unsubscribeSummary();
+                loginScreen.classList.remove('hidden');
+                appContent.classList.add('hidden');
+            });
 
-            const quantitySold = parseInt(document.getElementById('quantitySold').value, 10);
-            if (quantitySold > product.quantity) {
-                alert("No puedes vender más unidades de las que tienes en stock.");
-                return;
-            }
+            document.getElementById('createLoteBtn').addEventListener('click', () => {
+                const form = document.getElementById('loteForm');
+                form.reset();
+                document.getElementById('loteModalTitle').textContent = 'Crear Nuevo Lote';
+                document.getElementById('loteId').value = '';
+                document.getElementById('loteDate').valueAsDate = new Date();
+                loteModal.style.display = 'flex';
+            });
 
-            const saleData = {
-                productId: productId,
-                productName: product.name,
-                quantitySold: quantitySold,
-                salePrice: parseFloat(document.getElementById('salePrice').value),
-                saleDate: document.getElementById('saleDate').value,
-                soldPlatform: document.getElementById('soldPlatform').value,
-                purchasePriceAtTimeOfSale: product.purchasePrice
-            };
-
-            try {
-                await addDoc(salesCollectionRef, saleData);
-                await updateDoc(productRef, {
-                    quantity: increment(-quantitySold)
+            document.getElementById('addProductBtn').addEventListener('click', () => {
+                const form = document.getElementById('productForm');
+                form.reset();
+                document.getElementById('productId').value = '';
+                document.getElementById('modalTitle').textContent = 'Añadir Producto';
+                document.getElementById('loteSelect').parentElement.classList.remove('hidden');
+                document.getElementById('individualPurchaseFields').classList.remove('hidden');
+                document.getElementById('quantity').parentElement.parentElement.classList.remove('hidden');
+                document.getElementById('quantity').required = true;
+                document.getElementById('purchaseDate').valueAsDate = new Date();
+                const loteSelect = document.getElementById('loteSelect');
+                loteSelect.innerHTML = '<option value="">Sin Lote / Compra Individual</option>';
+                activeLotes.forEach(lote => {
+                    const option = document.createElement('option');
+                    option.value = lote.id;
+                    option.textContent = lote.name;
+                    loteSelect.appendChild(option);
                 });
-                soldModal.style.display = 'none';
-            } catch (error) {
-                console.error("Error al registrar la venta: ", error);
-            }
-        });
+                loteSelect.dispatchEvent(new Event('change'));
+                productModal.style.display = 'flex';
+            });
 
-        document.getElementById('addStockForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const productId = document.getElementById('addStockProductId').value;
-            const productRef = doc(productsCollectionRef, productId);
-            const product = allProductsList.find(p => p.id === productId);
-
-            const quantityToAdd = parseInt(document.getElementById('quantityToAdd').value, 10);
-            const newPurchasePrice = parseFloat(document.getElementById('newPurchasePrice').value);
-
-            if (isNaN(quantityToAdd) || isNaN(newPurchasePrice) || quantityToAdd <= 0) {
-                alert("Por favor, introduce una cantidad y precio válidos.");
-                return;
-            }
-
-            const currentQuantity = product.quantity;
-            const currentAvgPrice = product.purchasePrice;
-
-            const totalCurrentValue = currentQuantity * currentAvgPrice;
-            const totalNewValue = quantityToAdd * newPurchasePrice;
-            const newTotalQuantity = currentQuantity + quantityToAdd;
-            const newAveragePrice = (totalCurrentValue + totalNewValue) / newTotalQuantity;
-
-            try {
-                await updateDoc(productRef, {
-                    quantity: increment(quantityToAdd),
-                    purchasePrice: newAveragePrice
-                });
-                addStockModal.style.display = 'none';
-            } catch (error) {
-                console.error("Error al añadir stock: ", error);
-            }
-        });
-        
-        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
-            const id = document.getElementById('deleteProductId').value;
-            try {
-                await deleteDoc(doc(productsCollectionRef, id));
-                deleteModal.style.display = 'none';
-            } catch (error) {
-                console.error("Error deleting product: ", error);
-            }
-        });
-
-        document.getElementById('confirmDeleteSaleBtn').addEventListener('click', async () => {
-            const saleId = document.getElementById('deleteSaleId').value;
-            const productId = document.getElementById('deleteSaleProductId').value;
-            const quantityToRestore = parseInt(document.getElementById('deleteSaleQuantity').value, 10);
-
-            if (!saleId || !productId || isNaN(quantityToRestore)) {
-                alert("Error: No se pudo obtener la información de la venta para eliminarla.");
-                return;
-            }
-
-            const saleRef = doc(salesCollectionRef, saleId);
-            const productRef = doc(productsCollectionRef, productId);
-
-            try {
-                const productDoc = await getDoc(productRef);
-                if (productDoc.exists()) {
-                    await updateDoc(productRef, {
-                        quantity: increment(quantityToRestore)
-                    });
+            document.getElementById('loteSelect').addEventListener('change', (e) => {
+                const individualFields = document.getElementById('individualPurchaseFields');
+                const priceInput = document.getElementById('purchasePrice');
+                const dateInput = document.getElementById('purchaseDate');
+                if (e.target.value) {
+                    individualFields.classList.add('hidden');
+                    priceInput.required = false;
+                    dateInput.required = false;
                 } else {
-                    console.warn(`Product with ID ${productId} not found. Cannot restore stock.`);
+                    individualFields.classList.remove('hidden');
+                    priceInput.required = true;
+                    dateInput.required = true;
                 }
-                
-                await deleteDoc(saleRef);
-                deleteSaleModal.style.display = 'none';
-            } catch (error) {
-                console.error("Error al revertir la venta: ", error);
-                alert("Hubo un error inesperado al revertir la venta.");
-            }
-        });
+            });
 
-        // --- ACCOUNT RESET LOGIC ---
-        document.getElementById('resetAccountBtn').addEventListener('click', () => {
-            const resetCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-            document.getElementById('resetCode').textContent = resetCode;
-            document.getElementById('resetCodeInput').value = '';
-            document.getElementById('confirmResetBtn').disabled = true;
-            resetAccountModal.style.display = 'flex';
-        });
+            [ 'cancelLoteBtn', 'cancelProductBtn', 'cancelSoldBtn', 'cancelDeleteBtn', 'cancelDeleteSaleBtn', 'cancelResetBtn' ]
+            .forEach(id => document.getElementById(id).addEventListener('click', () => document.getElementById(id).closest('.modal-backdrop').style.display = 'none'));
+            
+            document.getElementById('toggleInStockBtn').addEventListener('click', () => {
+                const icon = document.getElementById('toggleInStockIcon');
+                document.getElementById('inStockWrapper').classList.toggle('hidden');
+                icon.classList.toggle('fa-chevron-down');
+                icon.classList.toggle('fa-chevron-up');
+            });
 
-        document.getElementById('resetCodeInput').addEventListener('input', (e) => {
-            const typedCode = e.target.value.toUpperCase();
-            const correctCode = document.getElementById('resetCode').textContent;
-            document.getElementById('confirmResetBtn').disabled = typedCode !== correctCode;
-        });
+            document.getElementById('toggleSalesHistoryBtn').addEventListener('click', () => {
+                const icon = document.getElementById('toggleSalesHistoryIcon');
+                document.getElementById('salesHistoryContainer').classList.toggle('hidden');
+                icon.classList.toggle('fa-chevron-down');
+                icon.classList.toggle('fa-chevron-up');
+            });
 
-        document.getElementById('confirmResetBtn').addEventListener('click', async () => {
-            try {
-                const salesSnapshot = await getDocs(salesCollectionRef);
-                for (const saleDoc of salesSnapshot.docs) {
-                    await deleteDoc(saleDoc.ref);
+            document.getElementById('searchInput').addEventListener('input', renderProducts);
+
+            document.getElementById('loteForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('loteId').value;
+                const loteData = { name: document.getElementById('loteName').value, cost: parseFloat(document.getElementById('loteCost').value), purchaseDate: document.getElementById('loteDate').value };
+                try {
+                    if (id) {
+                        await updateDoc(doc(lotesCollectionRef, id), loteData);
+                    } else {
+                        await addDoc(lotesCollectionRef, loteData);
+                    }
+                    loteModal.style.display = 'none';
+                    recalculateAndSaveSummary();
+                } catch (error) { console.error("Error saving lote: ", error); }
+            });
+
+            document.getElementById('productForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('productId').value;
+                const tagsString = document.getElementById('platformTags').value;
+                const productData = {
+                    name: document.getElementById('productName').value, model: document.getElementById('productModel').value, location: document.getElementById('productLocation').value,
+                    condition: document.getElementById('productCondition').value, imageUrl: document.getElementById('imageUrl').value, sellingPlatforms: tagsString.split(',').map(tag => tag.trim()).filter(tag => tag)
+                };
+                const isNewProduct = !id;
+                if (isNewProduct) {
+                    const quantity = parseInt(document.getElementById('quantity').value, 10);
+                    productData.quantity = quantity;
+                    productData.initialQuantity = quantity;
+                    productData.loteId = document.getElementById('loteSelect').value || null;
+                    if (productData.loteId) {
+                        const lote = activeLotes.find(l => l.id === productData.loteId);
+                        productData.purchaseDate = lote ? lote.purchaseDate : new Date().toISOString().slice(0,10);
+                        productData.purchasePrice = 0;
+                    } else {
+                        productData.purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+                        productData.purchaseDate = document.getElementById('purchaseDate').value;
+                    }
                 }
+                try {
+                    if (id) { 
+                        await updateDoc(doc(productsCollectionRef, id), productData); 
+                    } else { 
+                        await addDoc(productsCollectionRef, productData); 
+                    }
+                    productModal.style.display = 'none';
+                    
+                    if (isNewProduct) {
+                        if (productData.loteId) {
+                            recalculateAndSaveSummary();
+                        } else {
+                            const investmentDelta = (productData.purchasePrice || 0) * (productData.quantity || 0);
+                            updateSummaryIncrementally({ investmentDelta });
+                        }
+                    } else {
+                        recalculateAndSaveSummary();
+                    }
+                } catch (error) { console.error("Error saving product: ", error); }
+            });
 
-                const productsSnapshot = await getDocs(productsCollectionRef);
-                for (const productDoc of productsSnapshot.docs) {
-                    await deleteDoc(productDoc.ref);
+            document.getElementById('soldForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const productId = document.getElementById('soldProductId').value;
+                const productRef = doc(productsCollectionRef, productId);
+                const productDoc = await getDoc(productRef);
+                if (!productDoc.exists()) { alert("Error: No se pudo encontrar el producto para vender."); return; }
+                const product = {id: productDoc.id, ...productDoc.data()};
+                let purchasePrice = product.purchasePrice || 0;
+                if (product.loteId) {
+                    const loteDoc = await getDoc(doc(lotesCollectionRef, product.loteId));
+                    if (loteDoc.exists()) {
+                        const lote = loteDoc.data();
+                        const productsInLoteQuery = query(productsCollectionRef, where("loteId", "==", product.loteId));
+                        const productsSnapshot = await getDocs(productsInLoteQuery);
+                        const totalInitialQuantity = productsSnapshot.docs.reduce((sum, pDoc) => sum + (pDoc.data().initialQuantity || 0), 0);
+                        purchasePrice = totalInitialQuantity > 0 ? lote.cost / totalInitialQuantity : 0;
+                    }
                 }
+                const quantitySold = parseInt(document.getElementById('quantitySold').value, 10);
+                if (quantitySold > product.quantity) { alert("No puedes vender más unidades de las que tienes en stock."); return; }
+                const saleData = {
+                    productId, productName: product.name, loteId: product.loteId || null, quantitySold,
+                    salePrice: parseFloat(document.getElementById('salePrice').value), saleDate: document.getElementById('saleDate').value,
+                    soldPlatform: document.getElementById('soldPlatform').value, purchasePriceAtTimeOfSale: purchasePrice
+                };
+                try {
+                    const batch = writeBatch(db);
+                    batch.set(doc(collection(db, salesCollectionRef.path)), saleData);
+                    batch.update(productRef, { quantity: increment(-quantitySold) });
+                    await batch.commit();
+                    soldModal.style.display = 'none';
+                    
+                    const investmentDelta = - (saleData.purchasePriceAtTimeOfSale * saleData.quantitySold);
+                    const revenueDelta = saleData.salePrice * saleData.quantitySold;
+                    const profitDelta = revenueDelta + investmentDelta;
+                    updateSummaryIncrementally({ investmentDelta, revenueDelta, profitDelta });
+                } catch (error) { console.error("Error registering sale: ", error); }
+            });
+            
+            document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+                const id = document.getElementById('deleteId').value;
+                const type = document.getElementById('deleteType').value;
+                try {
+                    if (type === 'lote') {
+                        const batch = writeBatch(db);
+                        const productsSnapshot = await getDocs(query(productsCollectionRef, where("loteId", "==", id)));
+                        productsSnapshot.forEach(pDoc => batch.delete(pDoc.ref));
+                        batch.delete(doc(lotesCollectionRef, id));
+                        await batch.commit();
+                    } else {
+                        const productRef = doc(productsCollectionRef, id);
+                        const productDoc = await getDoc(productRef);
+                        if (productDoc.exists()) {
+                            await deleteDoc(productRef);
+                        }
+                    }
+                    deleteModal.style.display = 'none';
+                    recalculateAndSaveSummary();
+                } catch (error) { console.error("Error deleting item: ", error); }
+            });
 
-                console.log("Account reset successfully.");
-                resetAccountModal.style.display = 'none';
-            } catch (error) {
-                console.error("Error resetting account: ", error);
-                alert("Ocurrió un error al intentar reiniciar la cuenta.");
-            }
-        });
+            document.getElementById('confirmDeleteSaleBtn').addEventListener('click', async () => {
+                const saleId = document.getElementById('deleteSaleId').value;
+                const productId = document.getElementById('deleteSaleProductId').value;
+                const quantityToRestore = parseInt(document.getElementById('deleteSaleQuantity').value, 10);
+                if (!saleId || !productId || isNaN(quantityToRestore)) { alert("Error: No se pudo obtener la información de la venta para eliminarla."); return; }
+                try {
+                    const saleRef = doc(salesCollectionRef, saleId);
+                    const saleDoc = await getDoc(saleRef);
+                    if (saleDoc.exists()) {
+                        const saleData = saleDoc.data();
+                        const productRef = doc(productsCollectionRef, productId);
+                        const batch = writeBatch(db);
+                        batch.delete(saleRef);
+                        batch.update(productRef, { quantity: increment(quantityToRestore) });
+                        await batch.commit();
+
+                        const investmentDelta = saleData.purchasePriceAtTimeOfSale * saleData.quantitySold;
+                        const revenueDelta = - (saleData.salePrice * saleData.quantitySold);
+                        const profitDelta = -((saleData.salePrice - saleData.purchasePriceAtTimeOfSale) * saleData.quantitySold);
+                        updateSummaryIncrementally({ investmentDelta, revenueDelta, profitDelta });
+                    }
+                    deleteSaleModal.style.display = 'none';
+                } catch (error) { console.error("Error reverting sale: ", error); alert("Hubo un error inesperado al revertir la venta."); }
+            });
+
+            document.getElementById('resetAccountBtn').addEventListener('click', () => {
+                const resetCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                document.getElementById('resetCode').textContent = resetCode;
+                document.getElementById('resetCodeInput').value = '';
+                document.getElementById('confirmResetBtn').disabled = true;
+                resetAccountModal.style.display = 'flex';
+            });
+
+            document.getElementById('resetCodeInput').addEventListener('input', (e) => {
+                document.getElementById('confirmResetBtn').disabled = e.target.value.toUpperCase() !== document.getElementById('resetCode').textContent;
+            });
+
+            document.getElementById('confirmResetBtn').addEventListener('click', async () => {
+                async function deleteCollection(collectionRef, batch) {
+                    const snapshot = await getDocs(collectionRef);
+                    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                }
+                try {
+                    const batch = writeBatch(db);
+                    await deleteCollection(salesCollectionRef, batch);
+                    await deleteCollection(productsCollectionRef, batch);
+                    await deleteCollection(lotesCollectionRef, batch);
+                    batch.set(summaryRef, { totalInvestment: 0, totalRevenue: 0, totalProfit: 0 });
+                    await batch.commit();
+                    resetAccountModal.style.display = 'none';
+                } catch (error) { console.error("Error resetting account: ", error); alert("Ocurrió un error al intentar reiniciar la cuenta."); }
+            });
+        }
         
-        // --- INITIALIZATION ---
         function setupInitialView() {
-            if (window.innerWidth < 1024) { // lg breakpoint in Tailwind
-                // On mobile, hide Sales History by default
+            if (window.innerWidth < 1024) {
                 document.getElementById('salesHistoryContainer').classList.add('hidden');
-                document.getElementById('toggleSalesHistoryIcon').classList.add('fa-chevron-down');
-                document.getElementById('toggleSalesHistoryIcon').classList.remove('fa-chevron-up');
+                document.getElementById('toggleSalesHistoryIcon').className = 'fas fa-chevron-down transition-transform';
             } else {
-                // On desktop, show Sales History by default
                 document.getElementById('salesHistoryContainer').classList.remove('hidden');
-                document.getElementById('toggleSalesHistoryIcon').classList.remove('fa-chevron-down');
-                document.getElementById('toggleSalesHistoryIcon').classList.add('fa-chevron-up');
+                document.getElementById('toggleSalesHistoryIcon').className = 'fas fa-chevron-up transition-transform';
             }
         }
 
         window.onload = () => {
+            setupEventListeners();
             const storedUserId = sessionStorage.getItem('inventoryUserId');
             const storedUsername = sessionStorage.getItem('inventoryUsername');
             if (storedUserId && storedUsername) {
