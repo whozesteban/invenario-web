@@ -137,6 +137,15 @@
                     </div>
                 </div>
             </div>
+            <div class="mt-8">
+                <button id="toggleArchivedBtn" class="w-full text-left py-2 text-xl font-bold text-gray-700 flex justify-between items-center">
+                    <span class="flex items-center"><i class="fas fa-archive text-gray-500 mr-3"></i>Archivados (<span id="archivedCount">0</span>)</span>
+                    <i id="toggleArchivedIcon" class="fas fa-chevron-down transition-transform"></i>
+                </button>
+                <div id="archivedContainer" class="hidden bg-gray-100 rounded-xl shadow p-4 max-h-[50vh] overflow-y-auto">
+                    <div id="archivedList" class="space-y-4"></div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -235,7 +244,7 @@
             <h2 class="text-2xl font-bold mb-4">Registrar Venta</h2>
             <form id="soldForm">
                 <input type="hidden" id="soldProductId">
-                <div class="mb-4 p-2 bg-gray-100 rounded-md">
+                <div id="costBasisWrapper" class="mb-4 p-2 bg-gray-100 rounded-md">
                     <p class="text-sm text-gray-600">Coste para cálculo de ganancia:</p>
                     <p id="costBasisDisplay" class="font-bold text-red-600"></p>
                 </div>
@@ -287,7 +296,7 @@
             <i class="fas fa-undo text-5xl text-orange-500 mb-4"></i>
             <h2 class="text-xl font-bold mb-2">¿Revertir esta venta?</h2>
             <p class="text-gray-600 mb-6">La transacción se eliminará y el stock se devolverá al inventario. Esta acción no se puede deshacer.</p>
-            <div class="flex justify-center space-x-3">
+            <div class="flex justify-end space-x-3">
                 <button type="button" id="cancelDeleteSaleBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
                 <button type="button" id="confirmDeleteSaleBtn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg">Sí, revertir</button>
             </div>
@@ -305,6 +314,26 @@
                 <button type="button" id="cancelResetBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
                 <button type="button" id="confirmResetBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Borrar Todo</button>
             </div>
+        </div>
+    </div>
+    <div id="addStockModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-sm m-4 modal-content">
+            <h2 class="text-2xl font-bold mb-4">Añadir Stock a <span id="addStockProductName" class="font-bold"></span></h2>
+            <form id="addStockForm">
+                <input type="hidden" id="addStockProductId">
+                <div class="mb-4">
+                    <label for="quantityToAdd" class="block text-sm font-medium text-gray-700">Cantidad a Añadir</label>
+                    <input type="number" id="quantityToAdd" min="1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="mb-4">
+                    <label for="costOfNewStock" class="block text-sm font-medium text-gray-700">Coste por Unidad (del nuevo stock)</label>
+                    <input type="number" id="costOfNewStock" step="0.01" min="0" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancelAddStockBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Confirmar</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -375,12 +404,10 @@
 
         // --- LOGIN LOGIC ---
         function showApp(userId, username) {
-            // --- START OF FIX ---
             if (!localStorage.getItem('betaWarningShown')) {
                 alert('¡Bienvenido! Esta es una versión beta de la aplicación. Puede que encuentres errores. Todos tus datos se guardan de forma segura.');
                 localStorage.setItem('betaWarningShown', 'true');
             }
-            // --- END OF FIX ---
 
             loginScreen.classList.add('hidden');
             appContent.classList.remove('hidden');
@@ -419,6 +446,7 @@
             unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
                 allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderProducts();
+                renderArchivedProducts();
                 renderLotes();
             });
 
@@ -618,6 +646,22 @@
             }
         }
 
+        function renderArchivedProducts() {
+            const archivedList = document.getElementById('archivedList');
+            if (!archivedList) return;
+            archivedList.innerHTML = '';
+            const archivedProducts = allProducts.filter(p => p.quantity <= 0);
+            document.getElementById('archivedCount').textContent = archivedProducts.length;
+
+            if (archivedProducts.length === 0) {
+                archivedList.innerHTML = `<p class="text-center text-gray-500 py-4">No hay productos archivados.</p>`;
+            } else {
+                archivedProducts.forEach(product => {
+                    archivedList.appendChild(createArchivedProductCard(product));
+                });
+            }
+        }
+
         function renderSalesHistory() {
             const salesHistoryList = document.getElementById('salesHistoryList');
             if (!salesHistoryList) return;
@@ -633,6 +677,12 @@
             const card = document.createElement('div');
             card.className = 'bg-white p-4 rounded-xl shadow-lg border border-gray-200';
             const placeholderImage = `https://placehold.co/400x300/e2e8f0/64748b?text=${encodeURIComponent(product.name)}`;
+            
+            let addStockButtonHtml = '';
+            if (!product.loteId) {
+                addStockButtonHtml = `<button data-id="${product.id}" class="add-stock-btn w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-plus-square mr-2"></i>Añadir Stock</button>`;
+            }
+            
             card.innerHTML = `
                 <div class="flex flex-col md:flex-row gap-4">
                     <img src="${product.imageUrl || placeholderImage}" onerror="this.onerror=null;this.src='${placeholderImage}';" alt="Foto de ${product.name}" class="w-full md:w-32 h-32 object-contain bg-gray-100 rounded-lg">
@@ -644,11 +694,12 @@
                         <h3 class="font-bold text-lg">${product.name}</h3>
                         <p class="text-sm text-gray-600 italic">${product.model || ''}</p>
                         <p class="text-sm text-gray-500 font-semibold mb-2"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>${product.location || 'Sin ubicación'}</p>
-                        <div class="flex flex-wrap items-center mt-2">${getPlatformTags(product.sellingPlatforms)}</div>
+                        <div class="flex flex-wrap items-center mt-2">${getPlatformTags(product.sellingPlatforms, !!product.loteId)}</div>
                     </div>
                     <div class="flex flex-col space-y-2 justify-center items-center md:items-end mt-4 md:mt-0">
                         <button data-id="${product.id}" class="mark-sold-btn w-full md:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-dollar-sign mr-2"></i>Vender</button>
                         <button data-id="${product.id}" class="edit-btn w-full md:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-pencil mr-2"></i>Editar</button>
+                        ${addStockButtonHtml}
                         <button data-id="${product.id}" class="delete-btn w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i>Borrar</button>
                     </div>
                 </div>
@@ -656,6 +707,47 @@
             card.querySelector('.mark-sold-btn').addEventListener('click', () => openSoldModal(product));
             card.querySelector('.edit-btn').addEventListener('click', () => openEditModal(product));
             card.querySelector('.delete-btn').addEventListener('click', () => openDeleteModal(product.id, 'product', product.name));
+            
+            const addStockBtn = card.querySelector('.add-stock-btn');
+            if(addStockBtn) {
+                addStockBtn.addEventListener('click', () => openAddStockModal(product));
+            }
+
+            return card;
+        }
+
+        function createArchivedProductCard(product) {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-xl shadow-lg border border-gray-200';
+            card.style.filter = 'grayscale(1)';
+
+            const placeholderImage = `https://placehold.co/400x300/e2e8f0/64748b?text=${encodeURIComponent(product.name)}`;
+            
+            card.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-4">
+                    <img src="${product.imageUrl || placeholderImage}" onerror="this.onerror=null;this.src='${placeholderImage}';" alt="Foto de ${product.name}" class="w-full md:w-32 h-32 object-contain bg-gray-100 rounded-lg">
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center mb-1 flex-wrap">${getConditionBadge(product.condition)}</div>
+                            <div class="text-lg font-bold text-gray-600 bg-gray-200 px-3 py-1 rounded-full">
+                                Stock: ${product.quantity}
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-lg">${product.name}</h3>
+                        <p class="text-sm text-gray-600 italic">${product.model || ''}</p>
+                        <p class="text-sm text-gray-500 font-semibold mb-2"><i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>${product.location || 'Sin ubicación'}</p>
+                        <div class="flex flex-wrap items-center mt-2">${getPlatformTags(product.sellingPlatforms, !!product.loteId)}</div>
+                    </div>
+                    <div class="flex flex-col space-y-2 justify-center items-center md:items-end mt-4 md:mt-0">
+                        <button data-id="${product.id}" class="relist-btn w-full md:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-arrow-up-from-bracket mr-2"></i>Re-listar</button>
+                        <button data-id="${product.id}" class="delete-btn w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i>Borrar</button>
+                    </div>
+                </div>
+            `;
+            
+            card.querySelector('.relist-btn').addEventListener('click', () => openRelistModal(product));
+            card.querySelector('.delete-btn').addEventListener('click', () => openDeleteModal(product.id, 'product', product.name));
+            
             return card;
         }
 
@@ -722,9 +814,15 @@
             return `<span class="text-xs font-medium mr-2 mb-1 px-2.5 py-0.5 rounded ${colorClasses}">${condition}</span>`;
         }
 
-        function getPlatformTags(platforms = []) {
-            if (!platforms.length) return '';
-            return platforms.map(p => `<span class="bg-gray-200 text-gray-700 text-xs font-semibold mr-2 mb-1 px-2.5 py-0.5 rounded-full">${p}</span>`).join('');
+        function getPlatformTags(platforms = [], isFromLote = false) {
+            let tagsHtml = '';
+            if (isFromLote) {
+                tagsHtml += `<span class="bg-purple-200 text-purple-700 text-xs font-semibold mr-2 mb-1 px-2.5 py-0.5 rounded-full">Lote</span>`;
+            }
+            if (platforms && platforms.length > 0) {
+                tagsHtml += platforms.map(p => `<span class="bg-gray-200 text-gray-700 text-xs font-semibold mr-2 mb-1 px-2.5 py-0.5 rounded-full">${p}</span>`).join('');
+            }
+            return tagsHtml;
         }
 
         const loteModal = document.getElementById('loteModal');
@@ -733,6 +831,7 @@
         const deleteModal = document.getElementById('deleteModal');
         const deleteSaleModal = document.getElementById('deleteSaleModal');
         const resetAccountModal = document.getElementById('resetAccountModal');
+        const addStockModal = document.getElementById('addStockModal');
 
         function openEditLoteModal(lote) {
             const form = document.getElementById('loteForm');
@@ -757,7 +856,6 @@
             document.getElementById('platformTags').value = (product.sellingPlatforms || []).join(', ');
             document.getElementById('imageUrl').value = product.imageUrl || '';
             
-            // Hide and disable fields not editable after creation
             document.getElementById('loteSelect').parentElement.classList.add('hidden');
             document.getElementById('individualPurchaseFields').classList.add('hidden');
             document.getElementById('quantity').parentElement.parentElement.classList.add('hidden');
@@ -784,18 +882,15 @@
                 option.textContent = p;
                 platformSelect.appendChild(option);
             });
-            let purchasePrice = product.purchasePrice || 0;
+            
+            const costBasisWrapper = document.getElementById('costBasisWrapper');
             if (product.loteId) {
-                const loteDoc = await getDoc(doc(lotesCollectionRef, product.loteId));
-                if (loteDoc.exists()) {
-                    const lote = loteDoc.data();
-                    const productsInLoteQuery = query(productsCollectionRef, where("loteId", "==", product.loteId));
-                    const productsSnapshot = await getDocs(productsInLoteQuery);
-                    const totalInitialQty = productsSnapshot.docs.reduce((sum, pDoc) => sum + (pDoc.data().initialQuantity || 0), 0);
-                    purchasePrice = totalInitialQty > 0 ? lote.cost / totalInitialQty : 0;
-                }
+                costBasisWrapper.style.display = 'none';
+            } else {
+                costBasisWrapper.style.display = 'block';
+                let purchasePrice = product.purchasePrice || 0;
+                document.getElementById('costBasisDisplay').textContent = `$${purchasePrice.toFixed(2)} / unidad`;
             }
-            document.getElementById('costBasisDisplay').textContent = `$${purchasePrice.toFixed(2)} / unidad`;
             soldModal.style.display = 'flex';
         }
         
@@ -814,6 +909,50 @@
             document.getElementById('deleteSaleProductId').value = saleData.productId;
             document.getElementById('deleteSaleQuantity').value = saleData.quantity;
             deleteSaleModal.style.display = 'flex';
+        }
+
+        function openAddStockModal(product) {
+            document.getElementById('addStockForm').reset();
+            document.getElementById('addStockProductName').textContent = product.name;
+            document.getElementById('addStockProductId').value = product.id;
+            addStockModal.style.display = 'flex';
+        }
+
+        function openRelistModal(product) {
+            const form = document.getElementById('productForm');
+            form.reset();
+            
+            document.getElementById('modalTitle').textContent = 'Re-listar Producto';
+            document.getElementById('productId').value = ''; // Ensure it's a new product
+
+            // Pre-fill descriptive fields
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productModel').value = product.model || '';
+            document.getElementById('productLocation').value = product.location || '';
+            document.getElementById('productCondition').value = product.condition || 'Nuevo';
+            document.getElementById('platformTags').value = (product.sellingPlatforms || []).join(', ');
+            document.getElementById('imageUrl').value = product.imageUrl || '';
+            
+            // Show and configure fields for a new purchase
+            document.getElementById('loteSelect').parentElement.classList.remove('hidden');
+            document.getElementById('individualPurchaseFields').classList.remove('hidden');
+            document.getElementById('quantity').parentElement.parentElement.classList.remove('hidden');
+            document.getElementById('quantity').required = true;
+            document.getElementById('purchasePrice').required = true;
+            document.getElementById('purchaseDate').required = true;
+            document.getElementById('purchaseDate').valueAsDate = new Date();
+            
+            const loteSelect = document.getElementById('loteSelect');
+            loteSelect.innerHTML = '<option value="">Sin Lote / Compra Individual</option>';
+            activeLotes.forEach(lote => {
+                const option = document.createElement('option');
+                option.value = lote.id;
+                option.textContent = lote.name;
+                loteSelect.appendChild(option);
+            });
+            loteSelect.dispatchEvent(new Event('change'));
+
+            productModal.style.display = 'flex';
         }
 
         function setupEventListeners() {
@@ -888,7 +1027,7 @@
                 }
             });
 
-            [ 'cancelLoteBtn', 'cancelProductBtn', 'cancelSoldBtn', 'cancelDeleteBtn', 'cancelDeleteSaleBtn', 'cancelResetBtn' ]
+            [ 'cancelLoteBtn', 'cancelProductBtn', 'cancelSoldBtn', 'cancelDeleteBtn', 'cancelDeleteSaleBtn', 'cancelResetBtn', 'cancelAddStockBtn' ]
             .forEach(id => document.getElementById(id).addEventListener('click', () => document.getElementById(id).closest('.modal-backdrop').style.display = 'none'));
             
             document.getElementById('toggleInStockBtn').addEventListener('click', () => {
@@ -901,6 +1040,13 @@
             document.getElementById('toggleSalesHistoryBtn').addEventListener('click', () => {
                 const icon = document.getElementById('toggleSalesHistoryIcon');
                 document.getElementById('salesHistoryContainer').classList.toggle('hidden');
+                icon.classList.toggle('fa-chevron-down');
+                icon.classList.toggle('fa-chevron-up');
+            });
+
+            document.getElementById('toggleArchivedBtn').addEventListener('click', () => {
+                const icon = document.getElementById('toggleArchivedIcon');
+                document.getElementById('archivedContainer').classList.toggle('hidden');
                 icon.classList.toggle('fa-chevron-down');
                 icon.classList.toggle('fa-chevron-up');
             });
@@ -1050,6 +1196,50 @@
                     }
                     deleteSaleModal.style.display = 'none';
                 } catch (error) { console.error("Error reverting sale: ", error); alert("Hubo un error inesperado al revertir la venta."); }
+            });
+
+            document.getElementById('addStockForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const productId = document.getElementById('addStockProductId').value;
+                const quantityToAdd = parseInt(document.getElementById('quantityToAdd').value, 10);
+                const costOfNewStock = parseFloat(document.getElementById('costOfNewStock').value);
+
+                if (!productId || isNaN(quantityToAdd) || quantityToAdd <= 0 || isNaN(costOfNewStock) || costOfNewStock < 0) {
+                    alert("Por favor, introduce valores válidos.");
+                    return;
+                }
+
+                const productRef = doc(productsCollectionRef, productId);
+                try {
+                    const productDoc = await getDoc(productRef);
+                    if (!productDoc.exists() || productDoc.data().loteId) {
+                        alert("Error: No se puede añadir stock a este producto o el producto no existe.");
+                        return;
+                    }
+
+                    const product = productDoc.data();
+                    const oldQuantity = product.quantity;
+                    const oldPurchasePrice = product.purchasePrice || 0;
+
+                    // Calculate weighted average cost
+                    const oldTotalValue = oldQuantity * oldPurchasePrice;
+                    const newStockValue = quantityToAdd * costOfNewStock;
+                    const newTotalQuantity = oldQuantity + quantityToAdd;
+                    const newAveragePrice = (oldTotalValue + newStockValue) / newTotalQuantity;
+
+                    // Update Firestore
+                    await updateDoc(productRef, {
+                        quantity: increment(quantityToAdd),
+                        purchasePrice: newAveragePrice
+                    });
+
+                    addStockModal.style.display = 'none';
+                    recalculateAndSaveSummary();
+
+                } catch (error) {
+                    console.error("Error adding stock: ", error);
+                    alert("Hubo un error al añadir el stock.");
+                }
             });
 
             document.getElementById('resetAccountBtn').addEventListener('click', () => {
