@@ -338,7 +338,6 @@
         </div>
     </div>
 
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
@@ -986,23 +985,32 @@
             const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
             const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
 
-            // Establece el estado inicial del icono al cargar la app
+            // Lógica inicial para mostrar el icono correcto al cargar la página.
+            // Si el tema es oscuro, muestra el sol (para cambiar a claro). Si es claro, muestra la luna.
             if (document.documentElement.classList.contains('dark')) {
-                themeToggleLightIcon.classList.add('hidden');
-                themeToggleDarkIcon.classList.remove('hidden');
-            } else {
                 themeToggleDarkIcon.classList.add('hidden');
                 themeToggleLightIcon.classList.remove('hidden');
+            } else {
+                themeToggleLightIcon.classList.add('hidden');
+                themeToggleDarkIcon.classList.remove('hidden');
             }
 
             themeToggleBtn.addEventListener('click', () => {
                 // Alterna la clase 'dark' en el elemento <html>
-                const isDark = document.documentElement.classList.toggle('dark');
-                // Guarda la preferencia en localStorage
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                // Alterna los iconos dentro del botón
-                themeToggleDarkIcon.classList.toggle('hidden', !isDark);
-                themeToggleLightIcon.classList.toggle('hidden', isDark);
+                document.documentElement.classList.toggle('dark');
+
+                // Revisa cuál es el nuevo estado y actualiza el icono y localStorage
+                if (document.documentElement.classList.contains('dark')) {
+                    // Si AHORA es oscuro, guarda 'dark' y muestra el icono del sol.
+                    localStorage.setItem('theme', 'dark');
+                    themeToggleLightIcon.classList.remove('hidden');
+                    themeToggleDarkIcon.classList.add('hidden');
+                } else {
+                    // Si AHORA es claro, guarda 'light' y muestra el icono de la luna.
+                    localStorage.setItem('theme', 'light');
+                    themeToggleDarkIcon.classList.remove('hidden');
+                    themeToggleLightIcon.classList.add('hidden');
+                }
             });
             // --- END THEME TOGGLE LOGIC ---
 
