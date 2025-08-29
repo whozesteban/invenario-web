@@ -29,15 +29,6 @@
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 dark:bg-slate-900 dark:text-slate-300">
-    <script>
-        // Este script ahora está al inicio del BODY para asegurar que document.body exista.
-        // Revisa localStorage y la preferencia del sistema para aplicar el tema correcto al cargar.
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.body.classList.add('dark');
-        } else {
-            document.body.classList.remove('dark');
-        }
-    </script>
 
     <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900 py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-md w-full space-y-8">
@@ -985,41 +976,52 @@
                 appContent.classList.add('hidden');
             });
             
-            // --- THEME TOGGLE LOGIC (NUEVA VERSIÓN SIMPLIFICADA) ---
+            // --- THEME TOGGLE LOGIC (VERSIÓN DEFINITIVA Y CENTRALIZADA) ---
             const themeToggleBtn = document.getElementById('theme-toggle');
             const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
             const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
 
-            // Función para sincronizar el icono con el tema actual
-            const syncIconWithTheme = () => {
-                if (document.body.classList.contains('dark')) {
+            // Función única que aplica el tema y actualiza el icono
+            const applyTheme = (theme) => {
+                if (theme === 'dark') {
+                    document.body.classList.add('dark');
                     themeToggleDarkIcon.classList.add('hidden');
                     themeToggleLightIcon.classList.remove('hidden');
                 } else {
+                    document.body.classList.remove('dark');
                     themeToggleDarkIcon.classList.remove('hidden');
                     themeToggleLightIcon.classList.add('hidden');
                 }
             };
 
-            // Sincroniza el icono en cuanto se carga el script principal
-            syncIconWithTheme();
-
-            // Añade el evento de clic al botón
+            // Event listener para el botón
             themeToggleBtn.addEventListener('click', () => {
-                // 1. Alterna la clase 'dark' en el body (esto cambia los colores)
-                document.body.classList.toggle('dark');
-
-                // 2. Guarda la preferencia en localStorage
-                if (document.body.classList.contains('dark')) {
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    localStorage.setItem('theme', 'light');
-                }
-
-                // 3. Actualiza el icono para que coincida con el nuevo tema
-                syncIconWithTheme();
+                // Revisa qué tema está guardado para determinar el nuevo
+                const currentTheme = localStorage.getItem('theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                // Guarda y aplica el nuevo tema
+                localStorage.setItem('theme', newTheme);
+                applyTheme(newTheme);
             });
-            // --- FIN DE LA NUEVA LÓGICA ---
+
+            // Lógica para establecer el tema inicial en cuanto la app se carga
+            const initializeTheme = () => {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+                if (savedTheme) {
+                    applyTheme(savedTheme);
+                } else if (prefersDark) {
+                    applyTheme('dark');
+                } else {
+                    applyTheme('light');
+                }
+            };
+
+            // Llama a la función de inicialización aquí mismo
+            initializeTheme();
+            // --- FIN DE LA LÓGICA DEFINITIVA ---
 
             document.getElementById('createLoteBtn').addEventListener('click', () => {
                 const form = document.getElementById('loteForm');
