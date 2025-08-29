@@ -78,7 +78,7 @@
                         <i class="fas fa-plus mr-2"></i><span class="hidden md:inline">Producto</span>
                     </button>
                     <button id="theme-toggle" type="button" title="Cambiar Tema" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-slate-700 rounded-lg text-sm p-2.5">
-                        <i id="theme-toggle-dark-icon" class="fas fa-moon hidden"></i>
+                        <i id="theme-toggle-dark-icon" class="fas fa-moon"></i>
                         <i id="theme-toggle-light-icon" class="fas fa-sun hidden"></i>
                     </button>
                     <button id="resetAccountBtn" title="Reiniciar Cuenta" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded-lg shadow-md flex items-center">
@@ -980,36 +980,41 @@
                 appContent.classList.add('hidden');
             });
             
-            // --- THEME TOGGLE LOGIC ---
+            // --- THEME TOGGLE LOGIC (NUEVA VERSIÓN SIMPLIFICADA) ---
             const themeToggleBtn = document.getElementById('theme-toggle');
             const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
             const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
 
-            // Lógica inicial para mostrar el icono correcto al cargar la página.
-            if (document.body.classList.contains('dark')) {
-                themeToggleDarkIcon.classList.add('hidden');
-                themeToggleLightIcon.classList.remove('hidden');
-            } else {
-                themeToggleLightIcon.classList.add('hidden');
-                themeToggleDarkIcon.classList.remove('hidden');
-            }
-
-            themeToggleBtn.addEventListener('click', () => {
-                // Alterna la clase 'dark' en el elemento <body>
-                document.body.classList.toggle('dark');
-
-                // Revisa cuál es el nuevo estado y actualiza el icono y localStorage
+            // Función para sincronizar el icono con el tema actual
+            const syncIconWithTheme = () => {
                 if (document.body.classList.contains('dark')) {
-                    localStorage.setItem('theme', 'dark');
-                    themeToggleLightIcon.classList.remove('hidden');
                     themeToggleDarkIcon.classList.add('hidden');
+                    themeToggleLightIcon.classList.remove('hidden');
                 } else {
-                    localStorage.setItem('theme', 'light');
                     themeToggleDarkIcon.classList.remove('hidden');
                     themeToggleLightIcon.classList.add('hidden');
                 }
+            };
+
+            // Sincroniza el icono en cuanto se carga el script principal
+            syncIconWithTheme();
+
+            // Añade el evento de clic al botón
+            themeToggleBtn.addEventListener('click', () => {
+                // 1. Alterna la clase 'dark' en el body (esto cambia los colores)
+                document.body.classList.toggle('dark');
+
+                // 2. Guarda la preferencia en localStorage
+                if (document.body.classList.contains('dark')) {
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    localStorage.setItem('theme', 'light');
+                }
+
+                // 3. Actualiza el icono para que coincida con el nuevo tema
+                syncIconWithTheme();
             });
-            // --- END THEME TOGGLE LOGIC ---
+            // --- FIN DE LA NUEVA LÓGICA ---
 
             document.getElementById('createLoteBtn').addEventListener('click', () => {
                 const form = document.getElementById('loteForm');
