@@ -8,7 +8,7 @@
     <link rel="apple-touch-icon" href="https://i.imgur.com/bDeN39x.png">
     <script>
         tailwind.config = {
-          darkMode: 'class',
+          darkMode: 'media', // Cambiamos 'class' por 'media'
         }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -72,10 +72,6 @@
                     </button>
                     <button id="addProductBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center">
                         <i class="fas fa-plus mr-2"></i><span class="hidden md:inline">Producto</span>
-                    </button>
-                    <button id="theme-toggle" type="button" title="Cambiar Tema" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-slate-700 rounded-lg text-sm p-2.5">
-                        <i id="theme-toggle-dark-icon" class="fas fa-moon"></i>
-                        <i id="theme-toggle-light-icon" class="fas fa-sun hidden"></i>
                     </button>
                     <button id="resetAccountBtn" title="Reiniciar Cuenta" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded-lg shadow-md flex items-center">
                         <i class="fas fa-bomb"></i>
@@ -975,53 +971,6 @@
                 loginScreen.classList.remove('hidden');
                 appContent.classList.add('hidden');
             });
-            
-            // --- THEME TOGGLE LOGIC (VERSIÓN DEFINITIVA Y CENTRALIZADA) ---
-            const themeToggleBtn = document.getElementById('theme-toggle');
-            const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-            const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-
-            // Función única que aplica el tema y actualiza el icono
-            const applyTheme = (theme) => {
-                if (theme === 'dark') {
-                    document.body.classList.add('dark');
-                    themeToggleDarkIcon.classList.add('hidden');
-                    themeToggleLightIcon.classList.remove('hidden');
-                } else {
-                    document.body.classList.remove('dark');
-                    themeToggleDarkIcon.classList.remove('hidden');
-                    themeToggleLightIcon.classList.add('hidden');
-                }
-            };
-
-            // Event listener para el botón
-            themeToggleBtn.addEventListener('click', () => {
-                // Revisa qué tema está guardado para determinar el nuevo
-                const currentTheme = localStorage.getItem('theme');
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                
-                // Guarda y aplica el nuevo tema
-                localStorage.setItem('theme', newTheme);
-                applyTheme(newTheme);
-            });
-
-            // Lógica para establecer el tema inicial en cuanto la app se carga
-            const initializeTheme = () => {
-                const savedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-                if (savedTheme) {
-                    applyTheme(savedTheme);
-                } else if (prefersDark) {
-                    applyTheme('dark');
-                } else {
-                    applyTheme('light');
-                }
-            };
-
-            // Llama a la función de inicialización aquí mismo
-            initializeTheme();
-            // --- FIN DE LA LÓGICA DEFINITIVA ---
 
             document.getElementById('createLoteBtn').addEventListener('click', () => {
                 const form = document.getElementById('loteForm');
